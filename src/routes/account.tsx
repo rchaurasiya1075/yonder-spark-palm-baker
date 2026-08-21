@@ -3,6 +3,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { formatDate, formatInr } from "@/lib/format";
+import { getFirebaseCurrentUser } from "@/lib/firebase-auth";
+import { fbListMyOrders } from "@/lib/firebase-data";
 import { listMyOrders } from "@/lib/server/orders";
 import { STATUS_LABEL, type Order } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +22,11 @@ function AccountPage() {
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    listMyOrders()
+    const fbUser = getFirebaseCurrentUser();
+    const load = fbUser
+      ? fbListMyOrders(fbUser.uid, fbUser.email)
+      : listMyOrders();
+    load
       .then((rows) => {
         if (!cancelled) setOrders(rows);
       })

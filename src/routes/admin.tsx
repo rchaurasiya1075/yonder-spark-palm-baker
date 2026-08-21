@@ -5,6 +5,15 @@ import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { toDriveViewUrl } from "@/lib/drive";
 import { formatDateTime, formatInr } from "@/lib/format";
 import { firebaseConfig, isFirebaseConfigured } from "@/lib/firebase";
+import { getFirebaseCurrentUser } from "@/lib/firebase-auth";
+import {
+  fbEnsureUser,
+  fbListAllOrders,
+  fbListProducts,
+  fbSetStock,
+  fbUpdateOrderStatus,
+  fbUpsertProduct,
+} from "@/lib/firebase-data";
 import {
   listAdminProducts,
   listAllOrders,
@@ -30,6 +39,50 @@ const UNLOCK_KEY = "pinaki-owner-desk";
 
 type Tab = "products" | "orders" | "packing";
 
+async function loadAdminProducts() {
+  if (isFirebaseConfigured) {
+    try {
+      const rows = await fbListProducts({ includeHidden: true });
+      if (rows.length) return rows;
+    } catch {
+      /* fall through */
+    }
+  }
+  return listAdminProducts();
+}
+
+async function loadAdminOrders() {
+  if (isFirebaseConfigured) {
+    try {
+      return await fbListAllOrders();
+    } catch {
+      /* fall through */
+    }
+  }
+  return listAllOrders();
+}
+
+async function persistProduct(form: ProductInput) {
+  if (getFirebaseCurrentUser()) return fbUpsertProduct(form);
+  return saveProduct({ data: form });
+}
+
+async function persistStock(id: string, stock: number, active?: boolean) {
+  if (getFirebaseCurrentUser()) {
+    await fbSetStock(id, stock, active);
+    return;
+  }
+  await setProductStock({ data: { id, stock, active } });
+}
+
+async function persistOrderStatus(orderId: string, status: OrderStatus) {
+  if (getFirebaseCurrentUser()) {
+    await fbUpdateOrderStatus(orderId, status);
+    return;
+  }
+  await updateOrderStatus({ data: { orderId, status } });
+}
+
 function AdminPage() {
   const { user, isPending } = useCurrentUserState();
   const [unlocked, setUnlocked] = useState(false);
@@ -47,7 +100,7 @@ function AdminPage() {
   }, []);
 
   async function loadDesk() {
-    const [p, o] = await Promise.all([listAdminProducts(), listAllOrders()]);
+    const [p, o] = await Promise.all([loadAdminProducts(), loadAdminOrders()]);
     setProducts(p);
     setOrders(o);
     setReady(true);
@@ -84,6 +137,18 @@ function AdminPage() {
             ? `Firebase connected · ${firebaseConfig.projectId}`
             : "Firebase env not set yet"}
         </p>
+        <p className="mt-4 text-xs leading-relaxed text-muted">
+          Email/password is Firebase Authentication. Publish{" "}
+          <a
+            className="font-semibold text-accent underline"
+            href="https://console.firebase.google.com/project/pinaki-1fe56/firestore/rules"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Firestore rules
+          </a>{" "}
+          from this project so only the owner can edit products and orders.
+        </p>
         <form
           className="mt-8 space-y-4"
           onSubmit={async (e) => {
@@ -92,6 +157,19 @@ function AdminPage() {
             setPinError(null);
             try {
               await unlockAdminDesk({ data: pin });
+              const fbUser = getFirebaseCurrentUser();
+              if (fbUser) {
+                try {
+                  await fbEnsureUser({
+                    userId: fbUser.uid,
+                    email: fbUser.email,
+                    name: fbUser.displayName,
+                    role: "admin",
+                  });
+                } catch {
+                  /* owner email in rules is enough */
+                }
+              }
               sessionStorage.setItem(UNLOCK_KEY, "1");
               setUnlocked(true);
             } catch (err) {
@@ -163,20 +241,20 @@ function AdminPage() {
         <ProductsDesk
           products={products}
           onChange={async () => {
-            setProducts(await listAdminProducts());
+            setProducts(await loadAdminProducts());
           }}
         />
       ) : null}
       {tab === "orders" ? (
         <OrdersDesk
           orders={orders}
-          onChange={async () => setOrders(await listAllOrders())}
+          onChange={async () => setOrders(await loadAdminOrders())}
         />
       ) : null}
       {tab === "packing" ? (
         <PackingDesk
           orders={packing}
-          onChange={async () => setOrders(await listAllOrders())}
+          onChange={async () => setOrders(await loadAdminOrders())}
         />
       ) : null}
     </main>
@@ -234,7 +312,7 @@ function ProductsDesk({
     e.preventDefault();
     setBusy(true);
     try {
-      await saveProduct({ data: form });
+      await persistProduct(form);
       toast.success(editing ? "Product updated" : "Product added");
       setForm(emptyForm());
       await onChange();
@@ -273,7 +351,7 @@ function ProductsDesk({
                 size="sm"
                 variant="outline"
                 onClick={async () => {
-                  await setProductStock({ data: { id: p.id, stock: 0 } });
+                  await persistStock(p.id, 0);
                   toast.success("Marked out of stock");
                   await onChange();
                 }}
@@ -284,9 +362,7 @@ function ProductsDesk({
                 size="sm"
                 variant="ghost"
                 onClick={async () => {
-                  await setProductStock({
-                    data: { id: p.id, stock: p.stock, active: !p.active },
-                  });
+                  await persistStock(p.id, p.stock, !p.active);
                   toast.success(p.active ? "Hidden from shop" : "Visible in shop");
                   await onChange();
                 }}
@@ -514,7 +590,7 @@ function OrdersDesk({
                 disabled={order.orderStatus === "cancelled" && status !== "cancelled"}
                 onClick={async () => {
                   try {
-                    await updateOrderStatus({ data: { orderId: order.id, status } });
+                    await persistOrderStatus(order.id, status);
                     toast.success(`Marked ${STATUS_LABEL[status]}`);
                     await onChange();
                   } catch (err) {
@@ -564,9 +640,7 @@ function PackingDesk({
               </div>
               <Button
                 onClick={async () => {
-                  await updateOrderStatus({
-                    data: { orderId: order.id, status: "packed" },
-                  });
+                  await persistOrderStatus(order.id, "packed");
                   toast.success("Packed and cleared from desk");
                   await onChange();
                 }}

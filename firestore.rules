@@ -9,14 +9,37 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == userId;
     }
 
-    function profilePath() {
+    function email() {
+      return signedIn() && request.auth.token.email is string
+        ? request.auth.token.email.lower()
+        : '';
+    }
+
+    // Bootstrap owner — Email/Password account that may manage the shop.
+    function isOwnerEmail() {
+      return email() == 'grokaia94@gmail.com';
+    }
+
+    function profileDoc() {
       return /databases/$(database)/documents/profiles/$(request.auth.uid);
     }
 
+    function userDoc() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
     function isAdmin() {
-      return signedIn()
-        && exists(profilePath())
-        && get(profilePath()).data.role == 'admin';
+      return signedIn() && (
+        isOwnerEmail()
+        || (exists(profileDoc()) && get(profileDoc()).data.role == 'admin')
+        || (exists(userDoc()) && get(userDoc()).data.role == 'admin')
+      );
+    }
+
+    function orderStatusOf(data) {
+      return data.keys().hasAny(['orderStatus'])
+        ? data.orderStatus
+        : data.status;
     }
 
     match /products/{productId} {
@@ -26,20 +49,24 @@ service cloud.firestore {
 
     match /orders/{orderId} {
       allow read: if isAdmin()
-        || (signedIn() && resource.data.userId == request.auth.uid);
+        || (signedIn() && resource.data.userId == request.auth.uid)
+        || (signedIn() && resource.data.email is string
+            && email() != ''
+            && resource.data.email.lower() == email());
       allow create: if signedIn()
         && request.resource.data.userId == request.auth.uid
-        && request.resource.data.orderStatus == 'placed';
+        && orderStatusOf(request.resource.data) in ['placed', 'confirmed'];
       allow update, delete: if isAdmin();
     }
 
     match /users/{userId} {
-      allow read: if isSelf(userId) || isAdmin();
+      allow read: if isAdmin()
+        || isSelf(userId)
+        || (signedIn() && resource.data.uid == request.auth.uid);
       allow create: if isSelf(userId)
         && request.resource.data.role == 'customer';
       allow update: if isAdmin()
-        || (isSelf(userId)
-            && request.resource.data.role == resource.data.role);
+        || (isSelf(userId) && request.resource.data.role == resource.data.role);
       allow delete: if isAdmin();
     }
 
@@ -48,8 +75,7 @@ service cloud.firestore {
       allow create: if isSelf(userId)
         && request.resource.data.role == 'customer';
       allow update: if isAdmin()
-        || (isSelf(userId)
-            && request.resource.data.role == resource.data.role);
+        || (isSelf(userId) && request.resource.data.role == resource.data.role);
       allow delete: if isAdmin();
     }
   }

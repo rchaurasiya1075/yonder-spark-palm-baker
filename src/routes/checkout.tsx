@@ -3,6 +3,8 @@ import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-ro
 import { toast } from "sonner";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { cartTotal, useCart } from "@/lib/cart";
+import { getFirebaseCurrentUser } from "@/lib/firebase-auth";
+import { fbEnsureUser, fbGetProductById, fbPlaceOrder } from "@/lib/firebase-data";
 import { formatInr } from "@/lib/format";
 import { placeOrder } from "@/lib/server/orders";
 import { Button } from "@/components/ui/button";
@@ -58,17 +60,48 @@ function CheckoutPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      const order = await placeOrder({
-        data: {
+      const fbUser = getFirebaseCurrentUser();
+      let order;
+      if (fbUser) {
+        const lines = [];
+        for (const item of items) {
+          const product = await fbGetProductById(item.productId);
+          if (!product || !product.active) throw new Error("A product in your cart is no longer available.");
+          if (product.stock < item.quantity) {
+            throw new Error(`${product.name} has only ${product.stock} left.`);
+          }
+          lines.push({ product, quantity: item.quantity });
+        }
+        order = await fbPlaceOrder({
+          userId: fbUser.uid,
+          email: fbUser.email,
           name,
           phone,
           address,
           city,
           pincode,
           paymentMethod: payment,
-          items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
-        },
-      });
+          items: lines,
+        });
+        await fbEnsureUser({
+          userId: fbUser.uid,
+          email: fbUser.email,
+          name,
+          phone,
+        });
+      } else {
+        order = await placeOrder({
+          data: {
+            name,
+            phone,
+            address,
+            city,
+            pincode,
+            paymentMethod: payment,
+            items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+          },
+        });
+      }
       clear();
       toast.success("Order placed");
       await navigate({ to: "/orders/$orderId", params: { orderId: order.id } });

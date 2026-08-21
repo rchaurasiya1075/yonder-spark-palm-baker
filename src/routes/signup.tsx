@@ -34,17 +34,22 @@ function Signup() {
     }
     setBusy(true);
     setError(null);
-    const { error: err } = await authClient.signUp.email({ email, password, name });
-    if (!err) {
-      try {
-        const { firebaseEmailSignUp } = await import("@/lib/firebase-auth");
-        await firebaseEmailSignUp(email, password, name);
-      } catch {
-        /* Firebase Auth is optional in preview */
+    let firebaseOk = false;
+    try {
+      const { firebaseEmailSignUp } = await import("@/lib/firebase-auth");
+      const result = await firebaseEmailSignUp(email, password, name);
+      firebaseOk = result.ok;
+      if (result.error && !result.unauthorizedDomain) {
+        setError(result.error);
+        setBusy(false);
+        return;
       }
+    } catch {
+      /* Firebase Auth may be blocked on this host; fall through */
     }
+    const { error: err } = await authClient.signUp.email({ email, password, name });
     setBusy(false);
-    if (err) {
+    if (err && !firebaseOk) {
       setError(err.message ?? "Could not create account.");
       return;
     }
@@ -54,7 +59,9 @@ function Signup() {
   return (
     <main className="mx-auto flex min-h-[70vh] w-full max-w-md flex-col justify-center px-4 py-12">
       <h1 className="font-display text-3xl font-semibold">Create your account</h1>
-      <p className="mt-2 text-sm text-muted">Save orders, track jars, and checkout as yourself.</p>
+      <p className="mt-2 text-sm text-muted">
+        Create an email and password to save orders and track jars.
+      </p>
       <form onSubmit={onSubmit} className="mt-8 space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="name">Name</Label>

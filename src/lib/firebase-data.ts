@@ -7,8 +7,10 @@ import {
   doc,
   getDoc,
   getDocs,
+  query,
   setDoc,
   updateDoc,
+  where,
 } from "firebase/firestore";
 import { toDriveViewUrl } from "@/lib/drive";
 import { getFirebaseDb, isFirebaseConfigured, FIRESTORE_COLLECTIONS } from "@/lib/firebase";
@@ -399,13 +401,22 @@ export async function fbListAllOrders(): Promise<Order[]> {
 }
 
 export async function fbListMyOrders(userId: string, email?: string | null): Promise<Order[]> {
-  const all = await fbListAllOrders();
-  const emailLc = email?.trim().toLowerCase() ?? "";
-  return all.filter((o) => {
-    if (o.userId && o.userId === userId) return true;
-    if (emailLc && o.email?.trim().toLowerCase() === emailLc) return true;
-    return false;
-  });
+  const db = dbOrThrow();
+  const col = collection(db, FIRESTORE_COLLECTIONS.orders);
+  const found = new Map<string, Order>();
+  const snaps = await Promise.all([
+    getDocs(query(col, where("userId", "==", userId))),
+    email?.trim()
+      ? getDocs(query(col, where("email", "==", email.trim())))
+      : Promise.resolve(null),
+  ]);
+  for (const snap of snaps) {
+    if (!snap) continue;
+    for (const d of snap.docs) {
+      found.set(d.id, mapFirestoreOrder(d.id, d.data() as Record<string, unknown>));
+    }
+  }
+  return [...found.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function fbGetOrder(orderId: string): Promise<Order | null> {
@@ -480,24 +491,33 @@ export async function fbEnsureUser(input: {
 }) {
   const db = dbOrThrow();
   const now = new Date().toISOString();
+  const userRef = doc(db, FIRESTORE_COLLECTIONS.users, input.userId);
+  const profileRef = doc(db, FIRESTORE_COLLECTIONS.profiles, input.userId);
+  const existing = await getDoc(userRef);
+  const prevRole = existing.exists()
+    ? ((existing.data() as Record<string, unknown>).role as string)
+    : null;
+  const role = input.role === "admin" ? "admin" : prevRole === "admin" ? "admin" : "customer";
   await setDoc(
-    doc(db, FIRESTORE_COLLECTIONS.users, input.userId),
+    userRef,
     {
       uid: input.userId,
       email: input.email ?? "",
       name: input.name ?? "",
       phone: input.phone ?? "",
-      role: input.role ?? "customer",
-      createdAt: now,
+      role,
+      createdAt: existing.exists()
+        ? ((existing.data() as Record<string, unknown>).createdAt ?? now)
+        : now,
       updatedAt: now,
     },
     { merge: true },
   );
   await setDoc(
-    doc(db, FIRESTORE_COLLECTIONS.profiles, input.userId),
+    profileRef,
     {
       userId: input.userId,
-      role: input.role ?? "customer",
+      role,
       name: input.name ?? null,
       phone: input.phone ?? null,
     },

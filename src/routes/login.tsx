@@ -29,17 +29,22 @@ function Login() {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const { error: err } = await authClient.signIn.email({ email, password });
-    if (!err) {
-      try {
-        const { firebaseEmailSignIn } = await import("@/lib/firebase-auth");
-        await firebaseEmailSignIn(email, password);
-      } catch {
-        /* Firebase Auth is optional in preview */
+    let firebaseOk = false;
+    try {
+      const { firebaseEmailSignIn } = await import("@/lib/firebase-auth");
+      const result = await firebaseEmailSignIn(email, password);
+      firebaseOk = result.ok;
+      if (result.error && !result.unauthorizedDomain) {
+        setError(result.error);
+        setBusy(false);
+        return;
       }
+    } catch {
+      /* Firebase Auth may be blocked on this host; fall through */
     }
+    const { error: err } = await authClient.signIn.email({ email, password });
     setBusy(false);
-    if (err) {
+    if (err && !firebaseOk) {
       setError(err.message ?? "Could not sign in.");
       return;
     }
@@ -49,7 +54,9 @@ function Login() {
   return (
     <main className="mx-auto flex min-h-[70vh] w-full max-w-md flex-col justify-center px-4 py-12">
       <h1 className="font-display text-3xl font-semibold">Welcome back</h1>
-      <p className="mt-2 text-sm text-muted">Sign in to track orders and checkout faster.</p>
+      <p className="mt-2 text-sm text-muted">
+        Sign in with email and password to track orders and checkout faster.
+      </p>
       <form onSubmit={onSubmit} className="mt-8 space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="email">Email</Label>

@@ -3,6 +3,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { formatDateTime, formatInr } from "@/lib/format";
+import { getFirebaseCurrentUser } from "@/lib/firebase-auth";
+import { fbGetOrder, fbListMyOrders } from "@/lib/firebase-data";
 import { getMyOrder } from "@/lib/server/orders";
 import { STATUS_LABEL, type Order } from "@/lib/types";
 import { OrderTracker } from "@/components/order-tracker";
@@ -20,7 +22,15 @@ function OrderPage() {
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    getMyOrder({ data: { orderId } })
+    const fbUser = getFirebaseCurrentUser();
+    const load = fbUser
+      ? fbGetOrder(orderId).then(async (row) => {
+          if (row) return row;
+          const mine = await fbListMyOrders(fbUser.uid, fbUser.email);
+          return mine.find((o) => o.id === orderId) ?? null;
+        })
+      : getMyOrder({ data: { orderId } });
+    load
       .then((row) => {
         if (!cancelled) setOrder(row);
       })

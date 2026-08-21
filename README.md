@@ -93,11 +93,25 @@ Until Firebase env values are set, the shop already runs with built-in email/pas
 
 The shop reads **Cloud Firestore** `products` and `orders` (and writes new ones) when `VITE_FIREBASE_*` is set. Email/password Auth is already on.
 
-Still do this in the console:
+### Email / password Authentication
 
-1. **Authentication → Settings → Authorized domains** — add every public host: `localhost`, your Vercel/Netlify domain, and `rchaurasiya1075.github.io` if you keep GitHub Pages. The live preview host also needs to be listed for Firebase Auth (catalog still works without it).
-2. **Firestore → Rules** — the database is open for setup. Before launch, paste `firestore.rules` from this repo so customers cannot edit the catalog.
-3. Host env (Vercel / Netlify), never GitHub files:
+Firebase Console → **Authentication → Sign-in method → Email/Password** → Enable.
+
+This shop signs customers in with email and password against that provider. The owner account (`grokaia94@gmail.com`) is treated as admin in `firestore.rules`.
+
+### Publish Firestore rules
+
+1. Open [Firestore Rules](https://console.firebase.google.com/project/pinaki-1fe56/firestore/rules).
+2. Replace the editor with the contents of `firestore.rules` in this repo.
+3. **Publish**.
+
+Until you publish, the database is open. After publish:
+
+- Anyone can **read** products
+- Only a signed-in customer can **create** their own order
+- Only the owner/admin can **edit** products, stock, and order tracking
+
+Add every public host under **Authentication → Settings → Authorized domains**.
 
 ```
 VITE_FIREBASE_API_KEY
