@@ -125,12 +125,16 @@ function CheckoutPage() {
           items: lines,
           couponCode,
         });
-        await fbEnsureUser({
-          userId: fbUser.uid,
-          email: fbUser.email,
-          name,
-          phone,
-        });
+        try {
+          await fbEnsureUser({
+            userId: fbUser.uid,
+            email: fbUser.email,
+            name,
+            phone,
+          });
+        } catch {
+          /* order is already saved */
+        }
       } else {
         if (import.meta.env.VITE_GITHUB_PAGES === "1") {
           throw new Error("Please sign in again.");
@@ -151,8 +155,16 @@ function CheckoutPage() {
       toast.success("Order placed");
       await navigate({ to: "/orders/$orderId", params: { orderId: order.id } });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Could not place order";
-      toast.error(message === "Unauthorized" ? "Please sign in again." : message);
+      const code = err && typeof err === "object" && "code" in err ? String((err as { code: unknown }).code) : "";
+      const raw = err instanceof Error ? err.message : "Could not place order";
+      const denied = code === "permission-denied" || /insufficient permissions/i.test(raw);
+      toast.error(
+        denied
+          ? "Order save blocked. Sign in again, then place the order."
+          : raw === "Unauthorized"
+            ? "Please sign in again."
+            : raw,
+      );
     } finally {
       setBusy(false);
     }

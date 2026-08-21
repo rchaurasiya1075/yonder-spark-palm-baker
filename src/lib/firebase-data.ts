@@ -337,6 +337,21 @@ export async function fbSetStock(id: string, stock: number, active?: boolean) {
   await updateDoc(doc(db, FIRESTORE_COLLECTIONS.products, id), patch);
 }
 
+function isPermissionDenied(err: unknown) {
+  if (!err || typeof err !== "object") return false;
+  const code = "code" in err ? String((err as { code: unknown }).code) : "";
+  const message = err instanceof Error ? err.message : "";
+  return code === "permission-denied" || /insufficient permissions/i.test(message);
+}
+
+async function tryDecrementStock(productId: string, nextStock: number) {
+  try {
+    await fbSetStock(productId, nextStock);
+  } catch (err) {
+    if (!isPermissionDenied(err)) throw err;
+  }
+}
+
 export async function fbSeedMissing(products: Product[]) {
   if (!products.length) return;
   const existing = await fbListProducts({ includeHidden: true });
@@ -385,7 +400,7 @@ export async function fbPlaceOrder(input: FbCheckout): Promise<Order> {
 
   for (const line of input.items) {
     const nextStock = Math.max(0, line.product.stock - line.quantity);
-    await fbSetStock(line.product.id, nextStock, line.product.active);
+    await tryDecrementStock(line.product.id, nextStock);
   }
 
   const payload = {

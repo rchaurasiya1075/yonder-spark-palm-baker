@@ -49,7 +49,17 @@ service cloud.firestore {
 
     match /products/{productId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (
+          signedIn()
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['stock', 'inStock', 'updatedAt'])
+          && request.resource.data.stock is number
+          && request.resource.data.stock >= 0
+          && resource.data.stock is number
+          && request.resource.data.stock <= resource.data.stock
+        );
     }
 
     match /orders/{orderId} {
