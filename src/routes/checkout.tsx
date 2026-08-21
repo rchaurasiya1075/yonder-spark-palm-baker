@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { cartTotal, useCart } from "@/lib/cart";
 import { CouponBox, useAppliedCoupon } from "@/components/coupon-box";
+import { QuantityStepper } from "@/components/quantity-stepper";
+import { SmartImage } from "@/components/smart-image";
 import { getFirebaseCurrentUser } from "@/lib/firebase-auth";
 import { fbEnsureUser, fbGetProductById, fbPlaceOrder } from "@/lib/firebase-data";
 import { fbGetShopUser } from "@/lib/firebase-users";
@@ -24,6 +26,7 @@ function CheckoutPage() {
   const { user, isPending } = useCurrentUserState();
   const items = useCart((s) => s.items);
   const clear = useCart((s) => s.clear);
+  const setQuantity = useCart((s) => s.setQuantity);
   const couponCode = useCart((s) => s.couponCode);
   const setCouponCode = useCart((s) => s.setCouponCode);
   const navigate = useNavigate();
@@ -272,13 +275,28 @@ function CheckoutPage() {
         </div>
         <aside className="h-fit space-y-4 rounded-xl bg-paper p-6 ring-1 ring-border">
           <h2 className="font-display text-xl font-semibold">Order summary</h2>
-          <ul className="space-y-3 text-sm">
+          <ul className="space-y-4 text-sm">
             {items.map((item) => (
-              <li key={item.productId} className="flex justify-between gap-3">
-                <span>
-                  {item.name} × {item.quantity}
-                </span>
-                <span className="tabular-nums">{formatInr(item.price * item.quantity)}</span>
+              <li key={item.productId} className="flex gap-3">
+                <div className="size-14 shrink-0 overflow-hidden rounded-md bg-cream">
+                  {item.image ? (
+                    <SmartImage src={item.image} alt="" className="size-full object-cover" />
+                  ) : null}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium leading-snug">{item.name}</p>
+                  <p className="text-xs text-muted">{item.unit}</p>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <QuantityStepper
+                      value={item.quantity}
+                      max={item.stock}
+                      onChange={(n) => setQuantity(item.productId, n)}
+                    />
+                    <span className="tabular-nums font-semibold">
+                      {formatInr(item.price * item.quantity)}
+                    </span>
+                  </div>
+                </div>
               </li>
             ))}
           </ul>

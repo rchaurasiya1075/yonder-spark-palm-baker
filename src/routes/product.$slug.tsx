@@ -26,8 +26,10 @@ export const Route = createFileRoute("/product/$slug")({
 function ProductPage() {
   const { product, related } = Route.useLoaderData();
   const addItem = useCart((s) => s.addItem);
+  const setLine = useCart((s) => s.setLine);
   const navigate = useNavigate();
   const [qty, setQty] = useState(1);
+  const [buying, setBuying] = useState(false);
   const out = product.stock <= 0;
   const max = Math.max(1, product.stock);
 
@@ -38,8 +40,10 @@ function ProductPage() {
   }
 
   function buyNow() {
-    if (out) return;
-    addItem(product, qty);
+    if (out || buying) return;
+    setBuying(true);
+    setLine(product, qty);
+    toast.success(`Buying ${qty} × ${product.name}`);
     void navigate({ to: "/checkout" });
   }
 
@@ -90,10 +94,10 @@ function ProductPage() {
             <Button
               variant="forest"
               onClick={buyNow}
-              disabled={out}
+              disabled={out || buying}
               className="min-h-11 flex-1 sm:flex-none"
             >
-              Buy now
+              {buying ? "Going to checkout…" : "Buy now"}
             </Button>
           </div>
         </div>

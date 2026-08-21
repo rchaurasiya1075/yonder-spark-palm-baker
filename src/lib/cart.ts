@@ -6,11 +6,27 @@ type CartState = {
   items: CartItem[];
   couponCode: string | null;
   addItem: (product: Product, quantity?: number) => void;
+  setLine: (product: Product, quantity?: number) => void;
   setQuantity: (productId: string, quantity: number) => void;
   removeItem: (productId: string) => void;
   setCouponCode: (code: string | null) => void;
   clear: () => void;
 };
+
+function lineFrom(product: Product, quantity: number): CartItem {
+  const qty = Math.max(1, Math.min(quantity, Math.max(1, product.stock)));
+  return {
+    productId: product.id,
+    slug: product.slug,
+    name: product.name,
+    price: product.price,
+    mrp: product.mrp,
+    unit: product.unit,
+    image: product.imageUrls[0] ?? null,
+    quantity: qty,
+    stock: product.stock,
+  };
+}
 
 export const useCart = create<CartState>()(
   persist(
@@ -31,22 +47,12 @@ export const useCart = create<CartState>()(
           });
           return;
         }
-        set({
-          items: [
-            ...get().items,
-            {
-              productId: product.id,
-              slug: product.slug,
-              name: product.name,
-              price: product.price,
-              mrp: product.mrp,
-              unit: product.unit,
-              image: product.imageUrls[0] ?? null,
-              quantity: qty,
-              stock: product.stock,
-            },
-          ],
-        });
+        set({ items: [...get().items, lineFrom(product, qty)] });
+      },
+      setLine: (product, quantity = 1) => {
+        const next = lineFrom(product, quantity);
+        const items = get().items.filter((i) => i.productId !== product.id);
+        set({ items: [...items, next] });
       },
       setQuantity: (productId, quantity) => {
         if (quantity < 1) {

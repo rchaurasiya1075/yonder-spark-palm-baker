@@ -13,7 +13,8 @@ export const Route = createFileRoute("/signup")({
 });
 
 function safeRedirect(path: string | undefined) {
-  if (!path || !path.startsWith("/") || path.startsWith("//")) return "/account";
+  if (!path || !path.startsWith("/") || path.startsWith("//")) return "/";
+  if (path === "/login" || path === "/signup" || path === "/admin") return "/";
   return path;
 }
 
