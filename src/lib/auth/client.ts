@@ -227,6 +227,12 @@ export async function signOut(redirectTo = "/"): Promise<void> {
     requestSignOut: async () => {
       const { error } = await authClient.signOut();
       if (error) throw new Error(error.message ?? "Sign-out failed");
+      try {
+        const { firebaseSignOutSafe } = await import("@/lib/firebase-auth");
+        await firebaseSignOutSafe();
+      } catch {
+        /* optional */
+      }
     },
     clearToken: () => setBearerToken(null),
     redirect: () => {

@@ -89,6 +89,31 @@ This shop uses server routes (login, checkout, owner desk). **Vercel or Netlify*
 
 Until Firebase env values are set, the shop already runs with built-in email/password auth and its own database.
 
+### This project (`pinaki-1fe56`)
+
+The shop reads **Cloud Firestore** `products` and `orders` (and writes new ones) when `VITE_FIREBASE_*` is set. Email/password Auth is already on.
+
+Still do this in the console:
+
+1. **Authentication → Settings → Authorized domains** — add every public host: `localhost`, your Vercel/Netlify domain, and `rchaurasiya1075.github.io` if you keep GitHub Pages. The live preview host also needs to be listed for Firebase Auth (catalog still works without it).
+2. **Firestore → Rules** — the database is open for setup. Before launch, paste `firestore.rules` from this repo so customers cannot edit the catalog.
+3. Host env (Vercel / Netlify), never GitHub files:
+
+```
+VITE_FIREBASE_API_KEY
+VITE_FIREBASE_AUTH_DOMAIN
+VITE_FIREBASE_PROJECT_ID
+VITE_FIREBASE_STORAGE_BUCKET
+VITE_FIREBASE_MESSAGING_SENDER_ID
+VITE_FIREBASE_APP_ID
+VITE_FIREBASE_MEASUREMENT_ID
+VITE_FIREBASE_DATABASE_URL
+```
+
+Web config is public-by-design; security is rules + authorized domains, not hiding the API key.
+
+Recommended host for this shop is **Vercel** (GitHub repo → Import). GitHub Pages is static-only, so checkout/login need the server host.
+
 ### Firestore collections
 
 | Collection | Purpose |

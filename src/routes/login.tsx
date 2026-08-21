@@ -30,6 +30,14 @@ function Login() {
     setBusy(true);
     setError(null);
     const { error: err } = await authClient.signIn.email({ email, password });
+    if (!err) {
+      try {
+        const { firebaseEmailSignIn } = await import("@/lib/firebase-auth");
+        await firebaseEmailSignIn(email, password);
+      } catch {
+        /* Firebase Auth is optional in preview */
+      }
+    }
     setBusy(false);
     if (err) {
       setError(err.message ?? "Could not sign in.");

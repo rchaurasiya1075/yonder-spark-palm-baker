@@ -33,6 +33,16 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    match /users/{userId} {
+      allow read: if isSelf(userId) || isAdmin();
+      allow create: if isSelf(userId)
+        && request.resource.data.role == 'customer';
+      allow update: if isAdmin()
+        || (isSelf(userId)
+            && request.resource.data.role == resource.data.role);
+      allow delete: if isAdmin();
+    }
+
     match /profiles/{userId} {
       allow read: if isSelf(userId) || isAdmin();
       allow create: if isSelf(userId)

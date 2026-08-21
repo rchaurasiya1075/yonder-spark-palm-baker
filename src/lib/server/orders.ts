@@ -1,6 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql } from "@/lib/db";
+import { isFirebaseConfigured } from "@/lib/firebase";
+import {
+  fbEnsureUser,
+  fbGetOrder,
+  fbGetProductById,
+  fbListMyOrders,
+  fbPlaceOrder,
+} from "@/lib/firebase-data";
 import { makeId, makeOrderId } from "@/lib/utils";
 import type { Order, PaymentMethod } from "@/lib/types";
 import {
@@ -49,6 +57,13 @@ async function loadOrderBundle(orderId: string): Promise<Order | null> {
 export const getMyProfile = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
+    if (isFirebaseConfigured) {
+      try {
+        await fbEnsureUser({ userId: context.userId, email: context.email });
+      } catch {
+        /* optional */
+      }
+    }
     await ensureProfile(context.userId);
     const sql = await getSql();
     const rows = await sql.query<{
@@ -92,6 +107,49 @@ export const placeOrder = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((data: CheckoutInput) => validateCheckout(data))
   .handler(async ({ context, data }) => {
+    if (isFirebaseConfigured) {
+      try {
+        const lines: { product: NonNullable<Awaited<ReturnType<typeof fbGetProductById>>>; quantity: number }[] = [];
+        for (const item of data.items) {
+          const qty = Math.floor(Number(item.quantity));
+          if (!Number.isFinite(qty) || qty < 1) throw new Error("Invalid quantity.");
+          const product = await fbGetProductById(item.productId);
+          if (!product || !product.active) throw new Error("A product in your cart is no longer available.");
+          if (product.stock < qty) throw new Error(`${product.name} has only ${product.stock} left.`);
+          lines.push({ product, quantity: qty });
+        }
+        const order = await fbPlaceOrder({
+          userId: context.userId,
+          email: context.email,
+          name: data.name,
+          phone: data.phone,
+          address: data.address,
+          city: data.city,
+          pincode: data.pincode,
+          paymentMethod: data.paymentMethod,
+          items: lines,
+        });
+        await fbEnsureUser({
+          userId: context.userId,
+          email: context.email,
+          name: data.name,
+          phone: data.phone,
+        });
+        return order;
+      } catch (err) {
+        if (err instanceof Error && err.message !== "FIREBASE_OFF") {
+          if (
+            err.message.includes("no longer available") ||
+            err.message.includes("only") ||
+            err.message.includes("Invalid quantity")
+          ) {
+            throw err;
+          }
+        }
+        /* fall through to local orders if firebase write fails unexpectedly */
+        if (err instanceof Error && /available|only|Invalid/.test(err.message)) throw err;
+      }
+    }
     await ensureProfile(context.userId, data.name);
     const sql = await getSql();
     const lines: {
@@ -189,6 +247,14 @@ export const placeOrder = createServerFn({ method: "POST" })
 export const listMyOrders = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
+    if (isFirebaseConfigured) {
+      try {
+        const rows = await fbListMyOrders(context.userId, context.email);
+        if (rows.length) return rows;
+      } catch {
+        /* fall through */
+      }
+    }
     const sql = await getSql();
     const rows = await sql.query<OrderRow>(
       `select * from orders where user_id = $1 order by created_at desc`,
@@ -214,6 +280,23 @@ export const getMyOrder = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((data: { orderId: string }) => data)
   .handler(async ({ context, data }) => {
+    if (isFirebaseConfigured) {
+      try {
+        const order = await fbGetOrder(data.orderId);
+        if (order) {
+          if (order.userId === context.userId) return order;
+          if (context.email && order.email?.toLowerCase() === context.email.toLowerCase()) return order;
+          const sql = await getSql();
+          const roles = await sql.query<{ role: string }>(
+            `select role from profiles where user_id = $1`,
+            [context.userId],
+          );
+          if (roles[0]?.role === "admin") return order;
+        }
+      } catch {
+        /* fall through */
+      }
+    }
     const order = await loadOrderBundle(data.orderId);
     if (!order) return null;
     if (order.userId === context.userId) return order;

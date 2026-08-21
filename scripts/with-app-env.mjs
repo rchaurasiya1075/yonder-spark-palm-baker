@@ -25,6 +25,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const APP_ENV_REL_PATH = ".grok/app-env.json";
+export const FIREBASE_LOCAL_REL_PATH = ".grok/firebase-local.json";
 
 const VITE_PREFIX = "VITE_";
 
@@ -54,6 +55,15 @@ export function parseAppEnv(text) {
 export function readAppEnv(root) {
   try {
     return parseAppEnv(readFileSync(join(root, APP_ENV_REL_PATH), "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+/** Gitignored local Firebase web config. Never commit this file. */
+export function readFirebaseLocalEnv(root) {
+  try {
+    return parseAppEnv(readFileSync(join(root, FIREBASE_LOCAL_REL_PATH), "utf8"));
   } catch {
     return {};
   }
@@ -92,7 +102,10 @@ function main(argv) {
     console.error("usage: node scripts/with-app-env.mjs <command> [args…]");
     process.exit(2);
   }
-  const env = mergeAppEnv(readAppEnv(projectRoot()), process.env);
+  const env = mergeAppEnv(
+    { ...readAppEnv(projectRoot()), ...readFirebaseLocalEnv(projectRoot()) },
+    process.env,
+  );
   const child = spawn(command, args, { stdio: "inherit", env });
   // The dev server is long-running and is stopped by signalling this wrapper.
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {

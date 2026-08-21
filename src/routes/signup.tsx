@@ -35,6 +35,14 @@ function Signup() {
     setBusy(true);
     setError(null);
     const { error: err } = await authClient.signUp.email({ email, password, name });
+    if (!err) {
+      try {
+        const { firebaseEmailSignUp } = await import("@/lib/firebase-auth");
+        await firebaseEmailSignUp(email, password, name);
+      } catch {
+        /* Firebase Auth is optional in preview */
+      }
+    }
     setBusy(false);
     if (err) {
       setError(err.message ?? "Could not create account.");

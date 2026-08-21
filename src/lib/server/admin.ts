@@ -2,6 +2,15 @@ import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql } from "@/lib/db";
 import { normalizeImageUrls, toDriveViewUrl } from "@/lib/drive";
+import { isFirebaseConfigured } from "@/lib/firebase";
+import {
+  fbEnsureUser,
+  fbListAllOrders,
+  fbListProducts,
+  fbSetStock,
+  fbUpdateOrderStatus,
+  fbUpsertProduct,
+} from "@/lib/firebase-data";
 import type { Order, OrderStatus, ProductInput } from "@/lib/types";
 import { makeId, slugify } from "@/lib/utils";
 import {
@@ -48,6 +57,17 @@ export const unlockAdminDesk = createServerFn({ method: "POST" })
        on conflict (user_id) do update set role = 'admin'`,
       [context.userId],
     );
+    if (isFirebaseConfigured) {
+      try {
+        await fbEnsureUser({
+          userId: context.userId,
+          email: context.email,
+          role: "admin",
+        });
+      } catch {
+        /* optional */
+      }
+    }
     return { role: "admin" as const };
   });
 
@@ -55,6 +75,14 @@ export const listAdminProducts = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     await requireAdmin(context.userId);
+    if (isFirebaseConfigured) {
+      try {
+        const products = await fbListProducts({ includeHidden: true });
+        if (products.length) return products;
+      } catch {
+        /* fall through */
+      }
+    }
     const sql = await getSql();
     const rows = await sql.query<ProductRow>(
       `select ${SELECT_PRODUCT} from products order by category asc, name asc`,
@@ -69,7 +97,7 @@ function validateProduct(input: ProductInput): ProductInput {
   if (description.length < 8) throw new Error("Please add a product description.");
   const unit = input.unit.trim();
   if (!unit) throw new Error("Unit is required (e.g. 500 g, 1 L).");
-  if (!["achar", "ghee", "oil"].includes(input.category)) {
+  if (!["achar", "ghee", "oil", "other"].includes(input.category)) {
     throw new Error("Choose a category.");
   }
   const price = Math.round(Number(input.price));
@@ -106,6 +134,13 @@ export const saveProduct = createServerFn({ method: "POST" })
   .validator((data: ProductInput) => validateProduct(data))
   .handler(async ({ context, data }) => {
     await requireAdmin(context.userId);
+    if (isFirebaseConfigured) {
+      try {
+        return await fbUpsertProduct(data);
+      } catch {
+        /* fall through to local catalog */
+      }
+    }
     const sql = await getSql();
     const imageJson = JSON.stringify(data.imageUrls);
     if (data.id) {
@@ -180,8 +215,16 @@ export const setProductStock = createServerFn({ method: "POST" })
   .validator((data: { id: string; stock: number; active?: boolean }) => data)
   .handler(async ({ context, data }) => {
     await requireAdmin(context.userId);
-    const sql = await getSql();
     const stock = Math.max(0, Math.floor(Number(data.stock) || 0));
+    if (isFirebaseConfigured) {
+      try {
+        await fbSetStock(data.id, stock, data.active);
+        return { ok: true };
+      } catch {
+        /* fall through */
+      }
+    }
+    const sql = await getSql();
     if (typeof data.active === "boolean") {
       await sql.query(
         `update products set stock = $1, active = $2, updated_at = now() where id = $3`,
@@ -200,6 +243,14 @@ export const listAllOrders = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     await requireAdmin(context.userId);
+    if (isFirebaseConfigured) {
+      try {
+        const orders = await fbListAllOrders();
+        if (orders.length) return orders;
+      } catch {
+        /* fall through */
+      }
+    }
     const sql = await getSql();
     const rows = await sql.query<OrderRow>(
       `select * from orders order by created_at desc`,
@@ -243,6 +294,16 @@ export const updateOrderStatus = createServerFn({ method: "POST" })
       "cancelled",
     ];
     if (!allowed.includes(data.status)) throw new Error("Invalid status.");
+    if (isFirebaseConfigured) {
+      try {
+        await fbUpdateOrderStatus(data.orderId, data.status);
+        return { ok: true };
+      } catch (err) {
+        if (err instanceof Error && err.message !== "FIREBASE_OFF" && err.message !== "Order not found.") {
+          throw err;
+        }
+      }
+    }
     const sql = await getSql();
     const existing = await sql.query<OrderRow>(
       `select * from orders where id = $1`,

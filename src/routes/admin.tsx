@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { toDriveViewUrl } from "@/lib/drive";
 import { formatDateTime, formatInr } from "@/lib/format";
+import { firebaseConfig, isFirebaseConfigured } from "@/lib/firebase";
 import {
   listAdminProducts,
   listAllOrders,
@@ -78,6 +79,11 @@ function AdminPage() {
           Signed in as {user.primaryEmail ?? user.displayName}. Enter the owner PIN to
           continue. Customers cannot open this desk.
         </p>
+        <p className="mt-3 text-xs text-muted">
+          {isFirebaseConfigured
+            ? `Firebase connected · ${firebaseConfig.projectId}`
+            : "Firebase env not set yet"}
+        </p>
         <form
           className="mt-8 space-y-4"
           onSubmit={async (e) => {
@@ -127,6 +133,11 @@ function AdminPage() {
         Owner only
       </p>
       <h1 className="mt-2 font-display text-4xl font-semibold">Farm desk</h1>
+      <p className="mt-2 text-xs text-muted">
+        {isFirebaseConfigured
+          ? `Catalog and orders sync to Firebase · ${firebaseConfig.projectId}`
+          : "Local catalog (Firebase env not set)"}
+      </p>
       <div className="mt-6 flex flex-wrap gap-2">
         {(
           [
@@ -318,6 +329,7 @@ function ProductsDesk({
             <option value="achar">Achar</option>
             <option value="ghee">A2 Ghee</option>
             <option value="oil">Cold Pressed Oil</option>
+            <option value="other">Farm produce</option>
           </select>
         </div>
         <div className="space-y-1.5">

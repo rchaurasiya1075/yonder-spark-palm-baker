@@ -35,3 +35,4 @@ screenshots/
 .grok/skills/
 .grok/references/
 .grok/status
+.grok/firebase-local.json

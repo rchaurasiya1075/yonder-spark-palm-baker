@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "@/lib/db";
+import { isFirebaseConfigured } from "@/lib/firebase";
+import { fbGetProductBySlug, fbListProducts, fbSeedMissing } from "@/lib/firebase-data";
 import type { Category, Product } from "@/lib/types";
 import { mapProduct, type ProductRow } from "./map";
 
@@ -8,38 +10,64 @@ const SELECT_PRODUCT = `
   image_urls, video_url, stock, active, featured, created_at, updated_at
 `;
 
+async function listFromPostgres(data: { category?: Category; includeHidden?: boolean }) {
+  const sql = await getSql();
+  const category = data.category;
+  const includeHidden = Boolean(data.includeHidden);
+  let rows: ProductRow[];
+  if (category && includeHidden) {
+    rows = await sql.query<ProductRow>(
+      `select ${SELECT_PRODUCT} from products where category = $1 order by featured desc, name asc`,
+      [category],
+    );
+  } else if (category) {
+    rows = await sql.query<ProductRow>(
+      `select ${SELECT_PRODUCT} from products where category = $1 and active = true order by featured desc, name asc`,
+      [category],
+    );
+  } else if (includeHidden) {
+    rows = await sql.query<ProductRow>(
+      `select ${SELECT_PRODUCT} from products order by featured desc, name asc`,
+    );
+  } else {
+    rows = await sql.query<ProductRow>(
+      `select ${SELECT_PRODUCT} from products where active = true order by featured desc, name asc`,
+    );
+  }
+  return rows.map(mapProduct) as Product[];
+}
+
 export const listProducts = createServerFn({ method: "GET" })
   .validator((data?: { category?: Category; includeHidden?: boolean }) => data ?? {})
   .handler(async ({ data }) => {
-    const sql = await getSql();
-    const category = data.category;
-    const includeHidden = Boolean(data.includeHidden);
-    let rows: ProductRow[];
-    if (category && includeHidden) {
-      rows = await sql.query<ProductRow>(
-        `select ${SELECT_PRODUCT} from products where category = $1 order by featured desc, name asc`,
-        [category],
-      );
-    } else if (category) {
-      rows = await sql.query<ProductRow>(
-        `select ${SELECT_PRODUCT} from products where category = $1 and active = true order by featured desc, name asc`,
-        [category],
-      );
-    } else if (includeHidden) {
-      rows = await sql.query<ProductRow>(
-        `select ${SELECT_PRODUCT} from products order by featured desc, name asc`,
-      );
-    } else {
-      rows = await sql.query<ProductRow>(
-        `select ${SELECT_PRODUCT} from products where active = true order by featured desc, name asc`,
-      );
+    if (isFirebaseConfigured) {
+      try {
+        try {
+          const local = await listFromPostgres({ includeHidden: true });
+          await fbSeedMissing(local);
+        } catch {
+          /* seed is best-effort */
+        }
+        const firebaseProducts = await fbListProducts(data);
+        if (firebaseProducts.length) return firebaseProducts;
+      } catch {
+        /* fall through to local catalog */
+      }
     }
-    return rows.map(mapProduct) as Product[];
+    return listFromPostgres(data);
   });
 
 export const getProductBySlug = createServerFn({ method: "GET" })
   .validator((slug: string) => slug)
   .handler(async ({ data: slug }) => {
+    if (isFirebaseConfigured) {
+      try {
+        const product = await fbGetProductBySlug(slug);
+        if (product) return product;
+      } catch {
+        /* fall through */
+      }
+    }
     const sql = await getSql();
     const rows = await sql.query<ProductRow>(
       `select ${SELECT_PRODUCT} from products where slug = $1 limit 1`,

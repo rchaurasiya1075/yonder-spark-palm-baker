@@ -1,4 +1,4 @@
-export type Category = "achar" | "ghee" | "oil";
+export type Category = "achar" | "ghee" | "oil" | "other";
 
 export type OrderStatus =
   | "placed"
@@ -69,6 +69,7 @@ export type Order = {
   address: string;
   city: string;
   pincode: string;
+  email?: string | null;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
   orderStatus: OrderStatus;
