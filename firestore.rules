@@ -20,11 +20,11 @@ service cloud.firestore {
     }
 
     function profileDoc() {
-      return /databases/$(database)/documents/profiles/$(request.auth.uid);
+      return /databases/\( (database)/documents/profiles/ \)(request.auth.uid);
     }
 
     function userDoc() {
-      return /databases/$(database)/documents/users/$(request.auth.uid);
+      return /databases/\( (database)/documents/users/ \)(request.auth.uid);
     }
 
     function isAdmin() {
