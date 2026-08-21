@@ -1,0 +1,37 @@
+# dependencies
+node_modules/
+
+# secrets — never commit
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+
+# build output
+dist/
+.output/
+.nitro/
+.vercel/
+.tanstack/
+
+# logs and OS
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# editor
+.idea/
+.vscode/
+*.swp
+
+# local archives / QA
+*.zip
+artifacts/
+screenshots/
+
+# Grok builder skill packs (not needed to run the shop)
+.grok/skills/
+.grok/references/
+.grok/status
