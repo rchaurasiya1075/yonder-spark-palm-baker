@@ -43,6 +43,9 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin")({
   component: AdminPage,
+  head: () => ({
+    meta: [{ name: "robots", content: "noindex, nofollow" }],
+  }),
 });
 
 function OwnerAuth() {
@@ -65,8 +68,12 @@ function OwnerAuth() {
         }
         return;
       }
-      if (password.length < 8) {
-        setError("Password should be at least 8 characters.");
+      if (password.length < 10) {
+        setError("Owner password should be at least 10 characters.");
+        return;
+      }
+      if (!isOwnerEmail(email)) {
+        setError("Use the store owner Gmail for this desk.");
         return;
       }
       const result = await firebaseEmailSignUp(email, password, name, { role: "admin" });
@@ -86,7 +93,7 @@ function OwnerAuth() {
       <h1 className="mt-2 font-display text-3xl font-semibold">Owner desk</h1>
       <p className="mt-2 text-sm text-muted">
         Bookmark this page and keep the link with you. It is not shown anywhere in the
-        customer shop.
+        customer shop. Only the store owner Gmail can open this desk.
       </p>
       <div className="mt-6 flex gap-2">
         <button
