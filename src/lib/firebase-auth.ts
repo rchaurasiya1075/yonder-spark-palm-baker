@@ -129,7 +129,7 @@ export async function firebaseEmailSignUp(
   email: string,
   password: string,
   name: string,
-  extra?: { firstName?: string; lastName?: string; username?: string; phone?: string; role?: "admin" | "customer" },
+  extra?: { firstName?: string; lastName?: string; username?: string; phone?: string; role?: "admin" | "staff" | "customer" },
 ): Promise<FirebaseAuthResult> {
   if (!isFirebaseConfigured) return { ok: false };
   const auth = getFirebaseAuth();
@@ -153,7 +153,7 @@ export async function firebaseEmailSignUp(
     }
     const cred = await createUserWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
     const display = displayNameFrom(firstName, lastName, name);
-    const role = extra?.role === "admin" ? "admin" : "customer";
+    const role = extra?.role === "admin" ? "admin" : extra?.role === "staff" ? "staff" : "customer";
     if (display) {
       await updateProfile(cred.user, { displayName: display });
     }

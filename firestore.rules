@@ -15,7 +15,6 @@ service cloud.firestore {
         : '';
     }
 
-    // Bootstrap owner — Email/Password account that may manage the shop.
     function isOwnerEmail() {
       return email() == 'grokaia94@gmail.com';
     }
@@ -36,6 +35,17 @@ service cloud.firestore {
       );
     }
 
+    function isStaff() {
+      return signedIn() && (
+        (exists(profileDoc()) && get(profileDoc()).data.role == 'staff')
+        || (exists(userDoc()) && get(userDoc()).data.role == 'staff')
+      );
+    }
+
+    function isDesk() {
+      return isAdmin() || isStaff();
+    }
+
     function orderStatusOf(data) {
       return data.keys().hasAny(['orderStatus'])
         ? data.orderStatus
@@ -47,13 +57,19 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    match /products/{productId} {
+    match /categories/{categoryId} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
     }
 
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update: if isDesk();
+      allow delete: if isAdmin();
+    }
+
     match /orders/{orderId} {
-      allow read: if isAdmin()
+      allow read: if isDesk()
         || (signedIn() && resource.data.userId == request.auth.uid)
         || (signedIn() && resource.data.email is string
             && email() != ''
@@ -61,18 +77,20 @@ service cloud.firestore {
       allow create: if signedIn()
         && request.resource.data.userId == request.auth.uid
         && orderStatusOf(request.resource.data) in ['placed', 'confirmed'];
-      allow update, delete: if isAdmin();
+      allow update: if isDesk();
+      allow delete: if isAdmin();
     }
 
     match /users/{userId} {
       allow read: if isAdmin()
         || isSelf(userId)
         || (signedIn() && resource.data.uid == request.auth.uid);
-      allow create: if isSelf(userId)
-        && (
-          request.resource.data.role == 'customer'
-          || (request.resource.data.role == 'admin' && isOwnerEmail())
-        );
+      allow create: if (isSelf(userId)
+          && (
+            request.resource.data.role == 'customer'
+            || (request.resource.data.role == 'admin' && isOwnerEmail())
+          ))
+        || (isAdmin() && request.resource.data.role in ['customer', 'staff']);
       allow update: if isAdmin()
         || (isSelf(userId) && request.resource.data.role == resource.data.role)
         || (isSelf(userId) && isOwnerEmail() && request.resource.data.role == 'admin');
@@ -90,11 +108,12 @@ service cloud.firestore {
 
     match /profiles/{userId} {
       allow read: if isSelf(userId) || isAdmin();
-      allow create: if isSelf(userId)
-        && (
-          request.resource.data.role == 'customer'
-          || (request.resource.data.role == 'admin' && isOwnerEmail())
-        );
+      allow create: if (isSelf(userId)
+          && (
+            request.resource.data.role == 'customer'
+            || (request.resource.data.role == 'admin' && isOwnerEmail())
+          ))
+        || (isAdmin() && request.resource.data.role in ['customer', 'staff']);
       allow update: if isAdmin()
         || (isSelf(userId) && request.resource.data.role == resource.data.role)
         || (isSelf(userId) && isOwnerEmail() && request.resource.data.role == 'admin');

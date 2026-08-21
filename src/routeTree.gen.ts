@@ -18,6 +18,7 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ShopRouteImport } from './routes/shop'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as StaffRouteImport } from './routes/staff'
 import { Route as OrdersOrderIdRouteImport } from './routes/orders.$orderId'
 import { Route as ProductSlugRouteImport } from './routes/product.$slug'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -67,6 +68,11 @@ const SignupRoute = SignupRouteImport.update({
   path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StaffRoute = StaffRouteImport.update({
+  id: '/staff',
+  path: '/staff',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrdersOrderIdRoute = OrdersOrderIdRouteImport.update({
   id: '/orders/$orderId',
   path: '/orders/$orderId',
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/shop': typeof ShopRoute
   '/signup': typeof SignupRoute
+  '/staff': typeof StaffRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/product/$slug': typeof ProductSlugRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/shop': typeof ShopRoute
   '/signup': typeof SignupRoute
+  '/staff': typeof StaffRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/product/$slug': typeof ProductSlugRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/shop': typeof ShopRoute
   '/signup': typeof SignupRoute
+  '/staff': typeof StaffRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/product/$slug': typeof ProductSlugRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -138,6 +147,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/shop'
     | '/signup'
+    | '/staff'
     | '/orders/$orderId'
     | '/product/$slug'
     | '/api/auth/$'
@@ -152,6 +162,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/shop'
     | '/signup'
+    | '/staff'
     | '/orders/$orderId'
     | '/product/$slug'
     | '/api/auth/$'
@@ -166,6 +177,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/shop'
     | '/signup'
+    | '/staff'
     | '/orders/$orderId'
     | '/product/$slug'
     | '/api/auth/$'
@@ -181,6 +193,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ShopRoute: typeof ShopRoute
   SignupRoute: typeof SignupRoute
+  StaffRoute: typeof StaffRoute
   OrdersOrderIdRoute: typeof OrdersOrderIdRoute
   ProductSlugRoute: typeof ProductSlugRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -251,6 +264,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/staff': {
+      id: '/staff'
+      path: '/staff'
+      fullPath: '/staff'
+      preLoaderRoute: typeof StaffRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/orders/$orderId': {
       id: '/orders/$orderId'
       path: '/orders/$orderId'
@@ -285,6 +305,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ShopRoute: ShopRoute,
   SignupRoute: SignupRoute,
+  StaffRoute: StaffRoute,
   OrdersOrderIdRoute: OrdersOrderIdRoute,
   ProductSlugRoute: ProductSlugRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

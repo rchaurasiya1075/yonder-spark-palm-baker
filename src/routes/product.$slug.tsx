@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { CATEGORY_LABEL } from "@/lib/constants";
+import { categoryLabel } from "@/lib/categories";
 import { useCart } from "@/lib/cart";
 import { loadProductBySlug, loadProducts } from "@/lib/catalog-client";
 import { ProductGallery } from "@/components/product-gallery";
@@ -55,7 +55,7 @@ function ProductPage() {
         </Link>
         <span className="px-2">/</span>
         <Link to="/shop" search={{ category: product.category }} className="hover:underline">
-          {CATEGORY_LABEL[product.category]}
+          {categoryLabel(product.category)}
         </Link>
       </p>
       <div className="mt-6 grid gap-10 lg:grid-cols-2">
@@ -65,7 +65,7 @@ function ProductPage() {
           videoUrl={product.videoUrl}
         />
         <div>
-          <Badge>{CATEGORY_LABEL[product.category]}</Badge>
+          <Badge>{categoryLabel(product.category)}</Badge>
           {product.hindiName ? (
             <p className="mt-3 text-sm text-muted">{product.hindiName}</p>
           ) : null}

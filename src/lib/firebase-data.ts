@@ -14,6 +14,8 @@ import {
 } from "firebase/firestore";
 import { extractYouTubeId, normalizeImageUrls, normalizeVideoUrl } from "@/lib/drive";
 import { getFirebaseDb, isFirebaseConfigured, FIRESTORE_COLLECTIONS } from "@/lib/firebase";
+import { categoryIdFromLabel } from "@/lib/categories";
+import { mergeRole, parseRole } from "@/lib/roles";
 import { slugify, makeId, makeOrderId } from "@/lib/utils";
 import type {
   Category,
@@ -54,11 +56,16 @@ function asBool(value: unknown): boolean {
 }
 
 function mapCategory(raw: unknown): Category {
-  const c = asStr(raw).toLowerCase();
-  if (c.includes("achar") || c.includes("pickle")) return "achar";
-  if (c.includes("ghee")) return "ghee";
-  if (c.includes("oil")) return "oil";
-  return "other";
+  const original = asStr(raw);
+  const c = original.toLowerCase().trim();
+  if (!c) return "other";
+  if (c === "achar" || c.includes("achar") || c.includes("pickle")) return "achar";
+  if (c === "ghee" || c.includes("ghee")) return "ghee";
+  if (c === "oil" || c.includes("kolhu") || c.includes("cold pressed") || c.includes("cold-pressed")) {
+    return "oil";
+  }
+  if (c === "other") return "other";
+  return categoryIdFromLabel(original) || "other";
 }
 
 function pickName(data: Record<string, unknown>): string {
@@ -570,7 +577,7 @@ export async function fbEnsureUser(input: {
   const existing = await getDoc(userRef);
   const prev = existing.exists() ? (existing.data() as Record<string, unknown>) : null;
   const prevRole = prev?.role as string | undefined;
-  const role = input.role === "admin" ? "admin" : prevRole === "admin" ? "admin" : "customer";
+  const role = mergeRole(input.role, prevRole);
   const patch: Record<string, unknown> = {
     uid: input.userId,
     role,
@@ -609,7 +616,7 @@ export async function fbGetProfile(userId: string): Promise<Profile | null> {
     const data = profileSnap.data() as Record<string, unknown>;
     return {
       userId,
-      role: asStr(data.role) === "admin" ? "admin" : "customer",
+      role: parseRole(data.role),
       name: asStr(data.name) || null,
       phone: asStr(data.phone) || null,
     };
@@ -619,7 +626,7 @@ export async function fbGetProfile(userId: string): Promise<Profile | null> {
   const data = userSnap.data() as Record<string, unknown>;
   return {
     userId,
-    role: asStr(data.role) === "admin" ? "admin" : "customer",
+    role: parseRole(data.role),
     name: asStr(data.name) || null,
     phone: asStr(data.phone) || null,
   };

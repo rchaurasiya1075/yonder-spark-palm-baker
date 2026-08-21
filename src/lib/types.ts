@@ -1,4 +1,13 @@
-export type Category = "achar" | "ghee" | "oil" | "other";
+export type Category = string;
+
+export type ShopCategory = {
+  id: string;
+  label: string;
+  hindi: string;
+  blurb: string;
+  sort: number;
+  active: boolean;
+};
 
 export type OrderStatus =
   | "placed"
@@ -10,7 +19,7 @@ export type OrderStatus =
 
 export type PaymentMethod = "cod" | "online";
 export type PaymentStatus = "pending" | "paid" | "failed";
-export type UserRole = "customer" | "admin";
+export type UserRole = "customer" | "staff" | "admin";
 
 export type Product = {
   id: string;

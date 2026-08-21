@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { CATEGORY_LABEL } from "@/lib/constants";
+import { categoryLabel } from "@/lib/categories";
 import type { Product } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { PriceTag } from "@/components/price-tag";
@@ -25,7 +25,7 @@ export function ProductCard({ product }: { product: Product }) {
           <div className="grid size-full place-items-center text-sm text-muted">No image</div>
         )}
         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
-          <Badge>{CATEGORY_LABEL[product.category]}</Badge>
+          <Badge>{categoryLabel(product.category)}</Badge>
           {out ? <Badge tone="muted">Out of stock</Badge> : null}
           {product.mrp != null && product.mrp > product.price ? (
             <Badge tone="accent">Offer</Badge>

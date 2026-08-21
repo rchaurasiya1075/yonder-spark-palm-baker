@@ -1,20 +1,24 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Leaf, ShieldCheck, Sprout, Wheat } from "lucide-react";
 import { CATEGORIES, SITE } from "@/lib/constants";
-import { loadProducts } from "@/lib/catalog-client";
+import { loadProducts, loadShopCategories } from "@/lib/catalog-client";
 import { publicUrl } from "@/lib/public-url";
 import { ProductCard } from "@/components/product-card";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
-  loader: () => loadProducts(),
+  loader: async () => {
+    const [products, categories] = await Promise.all([loadProducts(), loadShopCategories()]);
+    return { products, categories };
+  },
   component: Home,
 });
 
 function Home() {
-  const products = Route.useLoaderData();
+  const { products, categories } = Route.useLoaderData();
   const featured = products.filter((p) => p.featured).slice(0, 3);
   const rest = featured.length ? featured : products.slice(0, 3);
+  const pantry = categories.length ? categories : CATEGORIES;
 
   return (
     <main>
@@ -64,7 +68,7 @@ function Home() {
           </div>
         </div>
         <div className="mt-8 grid gap-4 sm:grid-cols-3">
-          {CATEGORIES.map((cat) => (
+          {pantry.map((cat) => (
             <Link
               key={cat.id}
               to="/shop"

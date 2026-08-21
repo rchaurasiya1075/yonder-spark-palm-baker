@@ -1,16 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CATEGORIES } from "@/lib/constants";
-import { loadProducts } from "@/lib/catalog-client";
+import { loadProducts, loadShopCategories } from "@/lib/catalog-client";
+import { categoryLabel } from "@/lib/categories";
 import type { Category } from "@/lib/types";
 import { ProductCard } from "@/components/product-card";
 import { cn } from "@/lib/utils";
 
-const CATS: Category[] = ["achar", "ghee", "oil"];
-
 function parseCategory(value: unknown): Category | undefined {
-  return typeof value === "string" && CATS.includes(value as Category)
-    ? (value as Category)
-    : undefined;
+  if (typeof value !== "string") return undefined;
+  const slug = value.trim().toLowerCase();
+  if (!/^[a-z0-9-]{1,40}$/.test(slug)) return undefined;
+  return slug;
 }
 
 export const Route = createFileRoute("/shop")({
@@ -19,21 +18,27 @@ export const Route = createFileRoute("/shop")({
     return category ? { category } : {};
   },
   loaderDeps: ({ search }) => ({ category: search.category }),
-  loader: ({ deps }) => loadProducts({ category: deps.category }),
+  loader: async ({ deps }) => {
+    const [products, categories] = await Promise.all([
+      loadProducts({ category: deps.category }),
+      loadShopCategories(),
+    ]);
+    return { products, categories };
+  },
   component: ShopPage,
 });
 
 function ShopPage() {
-  const products = Route.useLoaderData();
+  const { products, categories } = Route.useLoaderData();
   const { category } = Route.useSearch();
-  const title =
-    CATEGORIES.find((c) => c.id === category)?.label ?? "The farm shop";
-  const hindi = CATEGORIES.find((c) => c.id === category)?.hindi;
+  const current = categories.find((c) => c.id === category);
+  const title = current?.label ?? (category ? categoryLabel(category, categories) : "The farm shop");
+  const hindi = current?.hindi;
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
       <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">
-        {hindi ?? "PINAKI Farms"}
+        {hindi || "PINAKI Farms"}
       </p>
       <h1 className="mt-2 font-display text-4xl font-semibold">{title}</h1>
       <p className="mt-3 max-w-xl text-sm text-muted">
@@ -46,23 +51,19 @@ function ShopPage() {
           search={{}}
           className={cn(
             "inline-flex h-11 items-center rounded-full px-4 text-sm font-semibold ring-1",
-            !category
-              ? "bg-ink text-paper ring-ink"
-              : "bg-paper text-ink ring-border",
+            !category ? "bg-ink text-paper ring-ink" : "bg-paper text-ink ring-border",
           )}
         >
           All
         </Link>
-        {CATEGORIES.map((cat) => (
+        {categories.map((cat) => (
           <Link
             key={cat.id}
             to="/shop"
             search={{ category: cat.id }}
             className={cn(
               "inline-flex h-11 items-center rounded-full px-4 text-sm font-semibold ring-1",
-              category === cat.id
-                ? "bg-ink text-paper ring-ink"
-                : "bg-paper text-ink ring-border",
+              category === cat.id ? "bg-ink text-paper ring-ink" : "bg-paper text-ink ring-border",
             )}
           >
             {cat.label}

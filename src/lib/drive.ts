@@ -151,7 +151,7 @@ export function toVideoEmbed(url: string | null | undefined): VideoEmbed | null 
     return {
       kind: "youtube",
       id: yt,
-      src: `https://www.youtube.com/embed/${yt}?rel=0&modestbranding=1`,
+      src: `https://www.youtube-nocookie.com/embed/${yt}?rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&color=white&fs=1&disablekb=0`,
     };
   }
   const driveId = extractDriveId(trimmed);

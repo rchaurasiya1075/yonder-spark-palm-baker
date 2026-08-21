@@ -250,3 +250,35 @@ test("role=admin in Firestore also unlocks the desk", async () => {
   await assertSucceeds(updateDoc(doc(staff, "products", "p1"), { stock: 5 }));
   await assertSucceeds(getDocs(collection(staff, "orders")));
 });
+
+test("employee staff can pack orders and list products, not coupons or customers", async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "users", "emp-uid"), {
+      uid: "emp-uid",
+      email: "emp@gmail.com",
+      role: "staff",
+    });
+    await setDoc(doc(ctx.firestore(), "profiles", "emp-uid"), {
+      userId: "emp-uid",
+      role: "staff",
+    });
+  });
+  const emp = asUser("emp-uid", "emp@gmail.com");
+  await assertSucceeds(getDocs(collection(emp, "products")));
+  await assertSucceeds(updateDoc(doc(emp, "products", "p1"), { stock: 4 }));
+  await assertSucceeds(updateDoc(doc(emp, "orders", "ord-cust"), { orderStatus: "packed" }));
+  await assertSucceeds(getDocs(collection(emp, "orders")));
+  await assertFails(setDoc(doc(emp, "coupons", "X"), { code: "X", active: true }));
+  await assertFails(getDocs(collection(emp, "users")));
+  await assertFails(setDoc(doc(emp, "categories", "honey"), { label: "Honey", active: true }));
+});
+
+test("owner can add a pantry category; guest can read it", async () => {
+  await assertSucceeds(
+    setDoc(doc(owner(), "categories", "honey"), { label: "Honey", hindi: "शहद", active: true, sort: 4 }),
+  );
+  await assertSucceeds(getDoc(doc(guest(), "categories", "honey")));
+  await assertFails(
+    setDoc(doc(customer(), "categories", "papad"), { label: "Papad", active: true }),
+  );
+});

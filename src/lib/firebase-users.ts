@@ -19,6 +19,7 @@ import { FIRESTORE_COLLECTIONS, getFirebaseDb, isFirebaseConfigured } from "@/li
 import { makeId } from "@/lib/utils";
 import type { SavedAddress, ShopUser, UserRole } from "@/lib/types";
 import { MAX_ADDRESSES } from "@/lib/types";
+import { mergeRole, parseRole } from "@/lib/roles";
 
 function dbOrThrow() {
   const db = getFirebaseDb();
@@ -71,7 +72,7 @@ export function mapShopUser(id: string, data: Record<string, unknown>): ShopUser
     lastName,
     name,
     phone: normalizePhone(asStr(data.phone)),
-    role: asStr(data.role) === "admin" ? "admin" : "customer",
+    role: parseRole(data.role),
     addresses,
     createdAt: asStr(data.createdAt) || new Date().toISOString(),
     updatedAt: asStr(data.updatedAt) || asStr(data.createdAt) || new Date().toISOString(),
@@ -175,8 +176,7 @@ export async function fbSaveShopUser(input: {
     addresses = addresses.map((a, i) => ({ ...a, isDefault: i === 0 }));
   }
   const now = new Date().toISOString();
-  const role: UserRole = input.role === "admin" || previous?.role === "admin" ? (previous?.role === "admin" ? "admin" : input.role ?? "customer") : "customer";
-  const keptRole: UserRole = previous?.role === "admin" ? "admin" : role === "admin" ? "admin" : "customer";
+  const keptRole: UserRole = mergeRole(input.role, previous?.role);
   const payload = {
     uid: input.userId,
     email: input.email.toLowerCase(),

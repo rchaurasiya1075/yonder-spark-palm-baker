@@ -34,7 +34,7 @@ export const CATEGORIES: {
   },
 ];
 
-export const CATEGORY_LABEL: Record<Category, string> = {
+export const CATEGORY_LABEL: Record<string, string> = {
   achar: "Achar",
   ghee: "A2 Ghee",
   oil: "Cold Pressed Oil",

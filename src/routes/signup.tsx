@@ -14,7 +14,7 @@ export const Route = createFileRoute("/signup")({
 
 function safeRedirect(path: string | undefined) {
   if (!path || !path.startsWith("/") || path.startsWith("//")) return "/";
-  if (path === "/login" || path === "/signup" || path === "/admin") return "/";
+  if (path === "/login" || path === "/signup" || path === "/admin" || path === "/staff") return "/";
   return path;
 }
 

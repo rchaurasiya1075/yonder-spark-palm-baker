@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Play } from "lucide-react";
 import { extractYouTubeId, toVideoEmbed, youtubeThumb } from "@/lib/drive";
+import { FarmVideo } from "@/components/farm-video";
 import { SmartImage } from "@/components/smart-image";
 import { cn } from "@/lib/utils";
 
@@ -18,11 +19,9 @@ export function ProductGallery({
   const slides: Array<{ type: "image"; src: string } | { type: "video"; thumb: string }> = [
     ...images.filter(Boolean).map((src) => ({ type: "image" as const, src })),
   ];
-  if (embed) {
+  if (embed && videoUrl) {
     const thumb =
-      embed.kind === "youtube" && ytId
-        ? youtubeThumb(ytId)
-        : images[0] || "";
+      embed.kind === "youtube" && ytId ? youtubeThumb(ytId) : images[0] || "";
     slides.push({ type: "video", thumb });
   }
   const [active, setActive] = useState(0);
@@ -31,19 +30,8 @@ export function ProductGallery({
   return (
     <div className="space-y-3">
       <div className="overflow-hidden rounded-xl bg-paper shadow-[var(--shadow-card)] ring-1 ring-border">
-        {slide?.type === "video" && embed ? (
-          embed.kind === "file" ? (
-            <video src={embed.src} controls className="aspect-video w-full bg-ink" />
-          ) : (
-            <iframe
-              title={`${name} video`}
-              src={embed.src}
-              className="aspect-video w-full bg-ink"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
-            />
-          )
+        {slide?.type === "video" && videoUrl ? (
+          <FarmVideo url={videoUrl} name={name} />
         ) : slide?.type === "image" ? (
           <SmartImage src={slide.src} alt={name} className="aspect-square w-full object-cover" />
         ) : (
