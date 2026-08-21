@@ -544,41 +544,47 @@ export async function fbEnsureUser(input: {
   name?: string | null;
   phone?: string | null;
   role?: Profile["role"];
+  firstName?: string | null;
+  lastName?: string | null;
+  username?: string | null;
 }) {
   const db = dbOrThrow();
   const now = new Date().toISOString();
   const userRef = doc(db, FIRESTORE_COLLECTIONS.users, input.userId);
   const profileRef = doc(db, FIRESTORE_COLLECTIONS.profiles, input.userId);
   const existing = await getDoc(userRef);
-  const prevRole = existing.exists()
-    ? ((existing.data() as Record<string, unknown>).role as string)
-    : null;
+  const prev = existing.exists() ? (existing.data() as Record<string, unknown>) : null;
+  const prevRole = prev?.role as string | undefined;
   const role = input.role === "admin" ? "admin" : prevRole === "admin" ? "admin" : "customer";
-  await setDoc(
-    userRef,
-    {
-      uid: input.userId,
-      email: input.email ?? "",
-      name: input.name ?? "",
-      phone: input.phone ?? "",
-      role,
-      createdAt: existing.exists()
-        ? ((existing.data() as Record<string, unknown>).createdAt ?? now)
-        : now,
-      updatedAt: now,
-    },
-    { merge: true },
-  );
-  await setDoc(
-    profileRef,
-    {
-      userId: input.userId,
-      role,
-      name: input.name ?? null,
-      phone: input.phone ?? null,
-    },
-    { merge: true },
-  );
+  const patch: Record<string, unknown> = {
+    uid: input.userId,
+    role,
+    updatedAt: now,
+  };
+  if (input.email) patch.email = input.email;
+  if (input.name) patch.name = input.name;
+  if (input.phone) patch.phone = input.phone;
+  if (input.firstName) patch.firstName = input.firstName;
+  if (input.lastName) patch.lastName = input.lastName;
+  if (input.username) patch.username = input.username;
+  if (!existing.exists()) {
+    patch.createdAt = now;
+    patch.email = input.email ?? "";
+    patch.name = input.name ?? "";
+    patch.phone = input.phone ?? "";
+    patch.firstName = input.firstName ?? "";
+    patch.lastName = input.lastName ?? "";
+    patch.username = input.username ?? "";
+    patch.addresses = [];
+  }
+  await setDoc(userRef, patch, { merge: true });
+  const profilePatch: Record<string, unknown> = {
+    userId: input.userId,
+    role,
+  };
+  if (input.name) profilePatch.name = input.name;
+  if (input.phone) profilePatch.phone = input.phone;
+  await setDoc(profileRef, profilePatch, { merge: true });
 }
 
 export async function fbGetProfile(userId: string): Promise<Profile | null> {

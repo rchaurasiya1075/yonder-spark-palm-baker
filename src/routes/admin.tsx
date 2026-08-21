@@ -3,7 +3,7 @@ import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { toDriveViewUrl, extractYouTubeId, normalizeVideoUrl, toVideoEmbed } from "@/lib/drive";
-import { formatDateTime, formatInr } from "@/lib/format";
+import { formatDate, formatDateTime, formatInr } from "@/lib/format";
 import { firebaseConfig, isFirebaseConfigured } from "@/lib/firebase";
 import { getFirebaseCurrentUser } from "@/lib/firebase-auth";
 import {
@@ -14,6 +14,7 @@ import {
   fbUpdateOrderStatus,
   fbUpsertProduct,
 } from "@/lib/firebase-data";
+import { fbListCustomers } from "@/lib/firebase-users";
 import {
   fbDeleteCoupon,
   fbEnsureDefaultCoupons,
@@ -30,7 +31,7 @@ import {
   unlockAdminDesk,
   updateOrderStatus,
 } from "@/lib/server/admin";
-import type { Category, Order, OrderStatus, Product, ProductInput } from "@/lib/types";
+import type { Category, Order, OrderStatus, Product, ProductInput, ShopUser } from "@/lib/types";
 import { STATUS_LABEL } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +46,7 @@ export const Route = createFileRoute("/admin")({
 
 const UNLOCK_KEY = "pinaki-owner-desk";
 
-type Tab = "products" | "orders" | "packing" | "offers";
+type Tab = "products" | "orders" | "packing" | "offers" | "customers";
 
 async function loadAdminProducts() {
   if (isFirebaseConfigured) {
@@ -110,6 +111,7 @@ function AdminPage() {
   const [tab, setTab] = useState<Tab>("products");
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [customers, setCustomers] = useState<ShopUser[]>([]);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -123,9 +125,14 @@ function AdminPage() {
     } catch {
       /* optional */
     }
-    const [p, o] = await Promise.all([loadAdminProducts(), loadAdminOrders()]);
+    const [p, o, c] = await Promise.all([
+      loadAdminProducts(),
+      loadAdminOrders(),
+      isFirebaseConfigured ? fbListCustomers().catch(() => [] as ShopUser[]) : Promise.resolve([] as ShopUser[]),
+    ]);
     setProducts(p);
     setOrders(o);
+    setCustomers(c);
     setReady(true);
   }
 
@@ -153,7 +160,7 @@ function AdminPage() {
         <h1 className="mt-2 font-display text-3xl font-semibold">Owner desk</h1>
         <p className="mt-2 text-sm text-muted">
           Signed in as {user.primaryEmail ?? user.displayName}. Enter the owner PIN to
-          continue. Customers cannot open this desk.
+          continue. This desk is not linked from the shop — bookmark this page.
         </p>
         <p className="mt-3 text-xs text-muted">
           {isFirebaseConfigured
@@ -251,6 +258,7 @@ function AdminPage() {
             ["offers", "Offers"],
             ["orders", "Orders"],
             ["packing", `Packing (${packing.length})`],
+            ["customers", `Customers (${customers.filter((u) => u.role !== "admin").length})`],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -287,6 +295,7 @@ function AdminPage() {
           onChange={async () => setOrders(await loadAdminOrders())}
         />
       ) : null}
+      {tab === "customers" ? <CustomersDesk customers={customers} /> : null}
     </main>
   );
 }
@@ -919,4 +928,69 @@ function OffersDesk() {
     </div>
   );
 }
+
+function CustomersDesk({ customers }: { customers: ShopUser[] }) {
+  const shoppers = customers.filter((u) => u.role !== "admin");
+  const owners = customers.filter((u) => u.role === "admin");
+
+  return (
+    <section className="mt-8 space-y-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl bg-paper p-5 ring-1 ring-border">
+          <p className="text-xs font-semibold tracking-[0.16em] text-muted uppercase">Total accounts</p>
+          <p className="mt-2 font-display text-3xl font-semibold tabular-nums">{customers.length}</p>
+        </div>
+        <div className="rounded-xl bg-paper p-5 ring-1 ring-border">
+          <p className="text-xs font-semibold tracking-[0.16em] text-muted uppercase">Customers</p>
+          <p className="mt-2 font-display text-3xl font-semibold tabular-nums">{shoppers.length}</p>
+        </div>
+        <div className="rounded-xl bg-paper p-5 ring-1 ring-border">
+          <p className="text-xs font-semibold tracking-[0.16em] text-muted uppercase">Owner / admin</p>
+          <p className="mt-2 font-display text-3xl font-semibold tabular-nums">{owners.length}</p>
+        </div>
+      </div>
+      {customers.length === 0 ? (
+        <p className="text-sm text-muted">No customer accounts in Firebase yet.</p>
+      ) : (
+        <ul className="space-y-3">
+          {customers.map((person) => (
+            <li key={person.userId} className="rounded-xl bg-paper p-5 ring-1 ring-border">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="font-semibold">
+                    {person.name || "Unnamed"}
+                    {person.username ? (
+                      <span className="ml-2 text-sm font-medium text-muted">@{person.username}</span>
+                    ) : null}
+                  </p>
+                  <p className="mt-1 text-sm text-muted">
+                    {person.email}
+                    {person.phone ? ` · ${person.phone}` : ""}
+                  </p>
+                  <p className="text-xs text-muted">Joined {formatDate(person.createdAt)}</p>
+                </div>
+                <Badge tone={person.role === "admin" ? "accent" : "forest"}>
+                  {person.role === "admin" ? "Admin" : "Customer"}
+                </Badge>
+              </div>
+              {person.addresses.length > 0 ? (
+                <ul className="mt-3 space-y-1 text-sm text-muted">
+                  {person.addresses.map((addr) => (
+                    <li key={addr.id}>
+                      {addr.label}: {addr.address}, {addr.city} {addr.pincode}
+                      {addr.isDefault ? " · default" : ""}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-3 text-xs text-muted">No saved addresses</p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 

@@ -4,6 +4,7 @@ import { GROK_PROVIDERS, authClient, authEnabled, signIn } from "@/lib/auth/clie
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { displayNameFrom } from "@/lib/identity";
 
 export const Route = createFileRoute("/signup")({
   validateSearch: (search: Record<string, unknown>): { redirect?: string } =>
@@ -20,7 +21,10 @@ function Signup() {
   const { redirect } = Route.useSearch();
   const navigate = useNavigate();
   const dest = safeRedirect(redirect);
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [username, setUsername] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -34,9 +38,15 @@ function Signup() {
     }
     setBusy(true);
     setError(null);
+    const name = displayNameFrom(firstName, lastName);
     try {
       const { firebaseEmailSignUp } = await import("@/lib/firebase-auth");
-      const result = await firebaseEmailSignUp(email, password, name);
+      const result = await firebaseEmailSignUp(email, password, name, {
+        firstName,
+        lastName,
+        username,
+        phone,
+      });
       if (result.ok) {
         await navigate({ to: dest });
         return;
@@ -65,21 +75,57 @@ function Signup() {
     <main className="mx-auto flex min-h-[70vh] w-full max-w-md flex-col justify-center px-4 py-12">
       <h1 className="font-display text-3xl font-semibold">Create your account</h1>
       <p className="mt-2 text-sm text-muted">
-        Create an email and password to save orders and track jars.
+        Set a username and Gmail so you can sign in and reset your password later.
       </p>
       <form onSubmit={onSubmit} className="mt-8 space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="first">First name</Label>
+            <Input
+              id="first"
+              autoComplete="given-name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="last">Last name</Label>
+            <Input
+              id="last"
+              autoComplete="family-name"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              required
+            />
+          </div>
+        </div>
         <div className="space-y-1.5">
-          <Label htmlFor="name">Name</Label>
+          <Label htmlFor="username">Username</Label>
           <Input
-            id="name"
-            autoComplete="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            id="username"
+            autoComplete="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value.toLowerCase())}
+            placeholder="farmuser"
             required
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="phone">Mobile</Label>
+          <Input
+            id="phone"
+            inputMode="numeric"
+            maxLength={10}
+            autoComplete="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+            placeholder="10-digit number"
+            required
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="email">Gmail / email</Label>
           <Input
             id="email"
             type="email"

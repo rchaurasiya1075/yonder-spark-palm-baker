@@ -75,6 +75,15 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /handles/{handleId} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if isAdmin()
+        || (signedIn() && resource.data.uid == request.auth.uid);
+    }
+
     match /profiles/{userId} {
       allow read: if isSelf(userId) || isAdmin();
       allow create: if isSelf(userId)

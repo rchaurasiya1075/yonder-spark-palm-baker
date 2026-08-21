@@ -50,14 +50,6 @@ export function SiteFooter() {
                 Cart
               </Link>
             </li>
-            <li className="pt-4">
-              <Link
-                to="/admin"
-                className="text-xs text-paper/40 hover:text-paper/70 hover:underline"
-              >
-                Store owner
-              </Link>
-            </li>
           </ul>
         </div>
       </div>

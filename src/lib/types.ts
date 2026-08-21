@@ -90,6 +90,33 @@ export type Profile = {
   phone: string | null;
 };
 
+export type SavedAddress = {
+  id: string;
+  label: string;
+  name: string;
+  phone: string;
+  address: string;
+  city: string;
+  pincode: string;
+  isDefault?: boolean;
+};
+
+export type ShopUser = {
+  userId: string;
+  email: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+  name: string;
+  phone: string;
+  role: UserRole;
+  addresses: SavedAddress[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const MAX_ADDRESSES = 5;
+
 export type ProductInput = {
   id?: string;
   name: string;

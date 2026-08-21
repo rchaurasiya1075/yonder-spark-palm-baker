@@ -30,6 +30,7 @@ export const FIRESTORE_COLLECTIONS = {
   users: "users",
   profiles: "profiles",
   coupons: "coupons",
+  handles: "handles",
 } as const;
 
 export function getFirebaseApp(): FirebaseApp | null {

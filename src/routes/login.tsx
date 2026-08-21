@@ -20,7 +20,7 @@ function Login() {
   const { redirect } = Route.useSearch();
   const navigate = useNavigate();
   const dest = safeRedirect(redirect);
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -30,8 +30,8 @@ function Login() {
     setBusy(true);
     setError(null);
     try {
-      const { firebaseEmailSignIn } = await import("@/lib/firebase-auth");
-      const result = await firebaseEmailSignIn(email, password);
+      const { firebaseIdentifierSignIn } = await import("@/lib/firebase-auth");
+      const result = await firebaseIdentifierSignIn(identifier, password);
       if (result.ok) {
         await navigate({ to: dest });
         return;
@@ -43,7 +43,7 @@ function Login() {
       if (result.error && !result.unauthorizedDomain) {
         setError(result.error);
       }
-      const { error: err } = await authClient.signIn.email({ email, password });
+      const { error: err } = await authClient.signIn.email({ email: identifier, password });
       if (err) {
         setError(err.message ?? "Could not sign in.");
         return;
@@ -60,17 +60,17 @@ function Login() {
     <main className="mx-auto flex min-h-[70vh] w-full max-w-md flex-col justify-center px-4 py-12">
       <h1 className="font-display text-3xl font-semibold">Welcome back</h1>
       <p className="mt-2 text-sm text-muted">
-        Sign in with email and password to track orders and checkout faster.
+        Sign in with Gmail, username, or mobile number.
       </p>
       <form onSubmit={onSubmit} className="mt-8 space-y-4">
         <div className="space-y-1.5">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="identifier">Email, username, or mobile</Label>
           <Input
-            id="email"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            id="identifier"
+            autoComplete="username"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+            placeholder="name@gmail.com or farmuser or 98xxxxxxxx"
             required
           />
         </div>
@@ -90,6 +90,11 @@ function Login() {
           {busy ? "Signing in…" : "Sign in"}
         </Button>
       </form>
+      <p className="mt-4 text-center text-sm">
+        <Link to="/forgot-password" className="font-semibold text-accent">
+          Forgot password?
+        </Link>
+      </p>
       {authEnabled && import.meta.env.VITE_GITHUB_PAGES !== "1" ? (
         <div className="mt-6 space-y-2">
           <p className="text-center text-xs text-muted">Or continue with</p>

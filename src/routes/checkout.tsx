@@ -6,13 +6,15 @@ import { cartTotal, useCart } from "@/lib/cart";
 import { CouponBox, useAppliedCoupon } from "@/components/coupon-box";
 import { getFirebaseCurrentUser } from "@/lib/firebase-auth";
 import { fbEnsureUser, fbGetProductById, fbPlaceOrder } from "@/lib/firebase-data";
+import { fbGetShopUser } from "@/lib/firebase-users";
 import { formatInr } from "@/lib/format";
 import { placeOrder } from "@/lib/server/orders";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { PaymentMethod } from "@/lib/types";
+import type { PaymentMethod, SavedAddress } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/checkout")({
   component: CheckoutPage,
@@ -32,14 +34,50 @@ function CheckoutPage() {
   const [pincode, setPincode] = useState("");
   const [payment, setPayment] = useState<PaymentMethod>("cod");
   const [busy, setBusy] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [pickedId, setPickedId] = useState<string | null>(null);
   const subtotal = cartTotal(items);
   const { discount, payable } = useAppliedCoupon(subtotal);
 
   useEffect(() => {
-    if (user?.displayName) {
+    if (!user) return;
+    if (user.displayName) {
       setName((current) => current || user.displayName || "");
     }
+    const fbUser = getFirebaseCurrentUser();
+    if (!fbUser) return;
+    let cancelled = false;
+    fbGetShopUser(fbUser.uid)
+      .then((profile) => {
+        if (cancelled || !profile) return;
+        setName((current) => current || profile.name || user.displayName || "");
+        setPhone((current) => current || profile.phone);
+        setSavedAddresses(profile.addresses);
+        const picked = profile.addresses.find((a) => a.isDefault) ?? profile.addresses[0];
+        if (!picked) return;
+        setPickedId(picked.id);
+        setName((current) => current || picked.name || profile.name);
+        setPhone((current) => current || picked.phone || profile.phone);
+        setAddress((current) => current || picked.address);
+        setCity((current) => current || picked.city);
+        setPincode((current) => current || picked.pincode);
+      })
+      .catch(() => {
+        /* checkout still works with a typed address */
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
+
+  function applyAddress(row: SavedAddress) {
+    setPickedId(row.id);
+    setName(row.name || name);
+    setPhone(row.phone || phone);
+    setAddress(row.address);
+    setCity(row.city);
+    setPincode(row.pincode);
+  }
 
   if (isPending) {
     return <main className="mx-auto max-w-3xl px-4 py-16 text-sm text-muted">Loading checkout…</main>;
@@ -126,6 +164,31 @@ function CheckoutPage() {
       <form onSubmit={onSubmit} className="mt-8 grid gap-8 lg:grid-cols-[1fr_320px]">
         <div className="space-y-5 rounded-xl bg-paper p-6 ring-1 ring-border">
           <h2 className="font-display text-xl font-semibold">Delivery details</h2>
+          {savedAddresses.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold tracking-[0.16em] text-muted uppercase">
+                Saved addresses
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {savedAddresses.map((row) => (
+                  <button
+                    key={row.id}
+                    type="button"
+                    onClick={() => applyAddress(row)}
+                    className={cn(
+                      "h-11 rounded-full px-4 text-sm font-semibold ring-1",
+                      pickedId === row.id
+                        ? "bg-ink text-paper ring-ink"
+                        : "bg-cream text-ink ring-border",
+                    )}
+                  >
+                    {row.label || "Address"}
+                    {row.isDefault ? " · default" : ""}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="name">Full name</Label>
