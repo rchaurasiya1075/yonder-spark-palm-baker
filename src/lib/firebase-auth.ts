@@ -129,7 +129,7 @@ export async function firebaseEmailSignUp(
   email: string,
   password: string,
   name: string,
-  extra?: { firstName?: string; lastName?: string; username?: string; phone?: string },
+  extra?: { firstName?: string; lastName?: string; username?: string; phone?: string; role?: "admin" | "customer" },
 ): Promise<FirebaseAuthResult> {
   if (!isFirebaseConfigured) return { ok: false };
   const auth = getFirebaseAuth();
@@ -153,6 +153,7 @@ export async function firebaseEmailSignUp(
     }
     const cred = await createUserWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
     const display = displayNameFrom(firstName, lastName, name);
+    const role = extra?.role === "admin" ? "admin" : "customer";
     if (display) {
       await updateProfile(cred.user, { displayName: display });
     }
@@ -165,7 +166,7 @@ export async function firebaseEmailSignUp(
         firstName,
         lastName,
         username,
-        role: "customer",
+        role,
       });
       if (cred.user.email) {
         await fbSaveShopUser({
@@ -176,7 +177,7 @@ export async function firebaseEmailSignUp(
           lastName,
           phone,
           addresses: [],
-          role: "customer",
+          role,
         });
       }
     } catch (err) {

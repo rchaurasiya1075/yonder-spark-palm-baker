@@ -79,9 +79,10 @@ service cloud.firestore {
         || isSelf(userId)
         || (signedIn() && resource.data.uid == request.auth.uid);
       allow create: if isSelf(userId)
-        && request.resource.data.role == 'customer';
+        && request.resource.data.role in ['customer', 'admin'];
       allow update: if isAdmin()
-        || (isSelf(userId) && request.resource.data.role == resource.data.role);
+        || (isSelf(userId) && request.resource.data.role == resource.data.role)
+        || (isSelf(userId) && isOwnerEmail() && request.resource.data.role == 'admin');
       allow delete: if isAdmin();
     }
 
@@ -97,9 +98,10 @@ service cloud.firestore {
     match /profiles/{userId} {
       allow read: if isSelf(userId) || isAdmin();
       allow create: if isSelf(userId)
-        && request.resource.data.role == 'customer';
+        && request.resource.data.role in ['customer', 'admin'];
       allow update: if isAdmin()
-        || (isSelf(userId) && request.resource.data.role == resource.data.role);
+        || (isSelf(userId) && request.resource.data.role == resource.data.role)
+        || (isSelf(userId) && isOwnerEmail() && request.resource.data.role == 'admin');
       allow delete: if isAdmin();
     }
   }

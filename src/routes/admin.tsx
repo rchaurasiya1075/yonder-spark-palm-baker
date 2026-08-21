@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
-import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { toDriveViewUrl, extractYouTubeId, normalizeVideoUrl, toVideoEmbed } from "@/lib/drive";
 import { formatDate, formatDateTime, formatInr } from "@/lib/format";
-import { firebaseConfig, isFirebaseConfigured } from "@/lib/firebase";
-import { getFirebaseCurrentUser } from "@/lib/firebase-auth";
+import { firebaseConfig, isFirebaseConfigured, isOwnerEmail } from "@/lib/firebase";
+import { firebaseEmailSignUp, firebaseIdentifierSignIn, getFirebaseCurrentUser } from "@/lib/firebase-auth";
+import { signOut } from "@/lib/auth/client";
 import {
   fbEnsureUser,
+  fbGetProfile,
   fbListAllOrders,
   fbListProducts,
   fbSetStock,
@@ -28,7 +30,6 @@ import {
   listAllOrders,
   saveProduct,
   setProductStock,
-  unlockAdminDesk,
   updateOrderStatus,
 } from "@/lib/server/admin";
 import type { Category, Order, OrderStatus, Product, ProductInput, ShopUser } from "@/lib/types";
@@ -44,7 +45,119 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-const UNLOCK_KEY = "pinaki-owner-desk";
+function OwnerAuth() {
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      if (mode === "signin") {
+        const result = await firebaseIdentifierSignIn(email, password);
+        if (!result.ok) {
+          setError(result.error ?? "Could not sign in.");
+        }
+        return;
+      }
+      if (password.length < 8) {
+        setError("Password should be at least 8 characters.");
+        return;
+      }
+      const result = await firebaseEmailSignUp(email, password, name, { role: "admin" });
+      if (!result.ok) {
+        setError(result.error ?? "Could not create owner account.");
+      }
+    } catch {
+      setError(mode === "signin" ? "Could not sign in." : "Could not create owner account.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <main className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-12">
+      <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">Store owner</p>
+      <h1 className="mt-2 font-display text-3xl font-semibold">Owner desk</h1>
+      <p className="mt-2 text-sm text-muted">
+        Bookmark this page and keep the link with you. It is not shown anywhere in the
+        customer shop.
+      </p>
+      <div className="mt-6 flex gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setMode("signin");
+            setError(null);
+          }}
+          className={cn(
+            "h-11 rounded-full px-4 text-sm font-semibold ring-1",
+            mode === "signin" ? "bg-ink text-paper ring-ink" : "bg-cream text-ink ring-border",
+          )}
+        >
+          Sign in
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setMode("signup");
+            setError(null);
+          }}
+          className={cn(
+            "h-11 rounded-full px-4 text-sm font-semibold ring-1",
+            mode === "signup" ? "bg-ink text-paper ring-ink" : "bg-cream text-ink ring-border",
+          )}
+        >
+          Create account
+        </button>
+      </div>
+      <form className="mt-6 space-y-4" onSubmit={onSubmit}>
+        {mode === "signup" ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="owner-name">Your name</Label>
+            <Input
+              id="owner-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </div>
+        ) : null}
+        <div className="space-y-1.5">
+          <Label htmlFor="owner-email">{mode === "signin" ? "Email, username, or mobile" : "Gmail"}</Label>
+          <Input
+            id="owner-email"
+            autoComplete="username"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder={mode === "signin" ? "name@gmail.com" : "owner@gmail.com"}
+            required
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="owner-password">Password</Label>
+          <Input
+            id="owner-password"
+            type="password"
+            autoComplete={mode === "signin" ? "current-password" : "new-password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+        {error ? <p className="text-sm text-accent">{error}</p> : null}
+        <Button type="submit" className="w-full" disabled={busy}>
+          {busy ? "Please wait…" : mode === "signin" ? "Open desk" : "Create owner account"}
+        </Button>
+      </form>
+    </main>
+  );
+}
 
 type Tab = "products" | "orders" | "packing" | "offers" | "customers";
 
@@ -104,20 +217,13 @@ async function persistOrderStatus(orderId: string, status: OrderStatus) {
 
 function AdminPage() {
   const { user, isPending } = useCurrentUserState();
-  const [unlocked, setUnlocked] = useState(false);
-  const [pin, setPin] = useState("");
-  const [pinError, setPinError] = useState<string | null>(null);
+  const [isOwner, setIsOwner] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<Tab>("products");
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<ShopUser[]>([]);
   const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    setUnlocked(sessionStorage.getItem(UNLOCK_KEY) === "1");
-  }, []);
 
   async function loadDesk() {
     try {
@@ -137,99 +243,75 @@ function AdminPage() {
   }
 
   useEffect(() => {
-    if (!user || !unlocked) return;
-    loadDesk().catch(() => {
-      setUnlocked(false);
-      sessionStorage.removeItem(UNLOCK_KEY);
-    });
-  }, [user, unlocked]);
+    if (isPending) return;
+    if (!user) {
+      setIsOwner(false);
+      setReady(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const fbUser = getFirebaseCurrentUser();
+      if (fbUser && isOwnerEmail(fbUser.email)) {
+        try {
+          await fbEnsureUser({
+            userId: fbUser.uid,
+            email: fbUser.email,
+            name: fbUser.displayName,
+            role: "admin",
+          });
+        } catch {
+          /* owner email is admin in Firestore rules */
+        }
+        if (!cancelled) setIsOwner(true);
+        return;
+      }
+      if (fbUser) {
+        try {
+          const profile = await fbGetProfile(fbUser.uid);
+          if (!cancelled) setIsOwner(profile?.role === "admin");
+        } catch {
+          if (!cancelled) setIsOwner(false);
+        }
+        return;
+      }
+      if (!cancelled) setIsOwner(import.meta.env.VITE_GITHUB_PAGES !== "1");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, isPending]);
 
-  if (isPending) {
+  useEffect(() => {
+    if (!user || isOwner !== true) return;
+    loadDesk().catch(() => {
+      toast.error("Could not open the owner desk.");
+    });
+  }, [user, isOwner]);
+
+  if (isPending || (user && isOwner === null)) {
     return <main className="mx-auto max-w-lg px-4 py-16 text-sm text-muted">Loading…</main>;
   }
   if (!user) {
-    return <Navigate to="/login" search={{ redirect: "/admin" }} />;
+    return <OwnerAuth />;
   }
-
-  if (!unlocked) {
+  if (!isOwner) {
     return (
       <main className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-12">
-        <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">
-          Store owner
-        </p>
+        <p className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">Store owner</p>
         <h1 className="mt-2 font-display text-3xl font-semibold">Owner desk</h1>
-        <p className="mt-2 text-sm text-muted">
-          Signed in as {user.primaryEmail ?? user.displayName}. Enter the owner PIN to
-          continue. This desk is not linked from the shop — bookmark this page.
+        <p className="mt-3 text-sm text-muted">
+          This page is only for the shop owner. The customer account you are using cannot
+          open it.
         </p>
-        <p className="mt-3 text-xs text-muted">
-          {isFirebaseConfigured
-            ? `Firebase connected · ${firebaseConfig.projectId}`
-            : "Firebase env not set yet"}
-        </p>
-        <p className="mt-4 text-xs leading-relaxed text-muted">
-          Email/password is Firebase Authentication. Publish{" "}
-          <a
-            className="font-semibold text-accent underline"
-            href="https://console.firebase.google.com/project/pinaki-1fe56/firestore/rules"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Firestore rules
-          </a>{" "}
-          from this project so only the owner can edit products and orders.
-        </p>
-        <form
-          className="mt-8 space-y-4"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            setBusy(true);
-            setPinError(null);
-            try {
-              await unlockAdminDesk({ data: pin });
-              const fbUser = getFirebaseCurrentUser();
-              if (fbUser) {
-                try {
-                  await fbEnsureUser({
-                    userId: fbUser.uid,
-                    email: fbUser.email,
-                    name: fbUser.displayName,
-                    role: "admin",
-                  });
-                } catch {
-                  /* owner email in rules is enough */
-                }
-              }
-              sessionStorage.setItem(UNLOCK_KEY, "1");
-              setUnlocked(true);
-            } catch (err) {
-              if (pin.trim() === "PINAKI") {
-                sessionStorage.setItem(UNLOCK_KEY, "1");
-                setUnlocked(true);
-              } else {
-                setPinError(err instanceof Error ? err.message : "PIN rejected");
-              }
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          <div className="space-y-1.5">
-            <Label htmlFor="pin">Owner PIN</Label>
-            <Input
-              id="pin"
-              type="password"
-              autoComplete="off"
-              value={pin}
-              onChange={(e) => setPin(e.target.value)}
-              required
-            />
-          </div>
-          {pinError ? <p className="text-sm text-accent">{pinError}</p> : null}
-          <Button type="submit" className="w-full" disabled={busy}>
-            {busy ? "Checking…" : "Open desk"}
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Button type="button" onClick={() => void signOut("/")}>
+            Sign out
           </Button>
-        </form>
+          <Button asChild variant="outline">
+            <Link to="/">Back to shop</Link>
+          </Button>
+        </div>
       </main>
     );
   }

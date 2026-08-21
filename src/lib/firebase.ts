@@ -24,6 +24,12 @@ export const isFirebaseConfigured = Boolean(
   firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId,
 );
 
+export const OWNER_EMAIL = "grokaia94@gmail.com";
+
+export function isOwnerEmail(email?: string | null) {
+  return (email ?? "").trim().toLowerCase() === OWNER_EMAIL;
+}
+
 export const FIRESTORE_COLLECTIONS = {
   products: "products",
   orders: "orders",
