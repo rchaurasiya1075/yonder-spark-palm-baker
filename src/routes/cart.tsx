@@ -2,9 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Trash2 } from "lucide-react";
 import { cartTotal, useCart } from "@/lib/cart";
 import { formatInr } from "@/lib/format";
+import { CouponBox, useAppliedCoupon } from "@/components/coupon-box";
 import { PriceTag } from "@/components/price-tag";
 import { QuantityStepper } from "@/components/quantity-stepper";
 import { Button } from "@/components/ui/button";
+import { SmartImage } from "@/components/smart-image";
 
 export const Route = createFileRoute("/cart")({
   component: CartPage,
@@ -14,7 +16,10 @@ function CartPage() {
   const items = useCart((s) => s.items);
   const setQuantity = useCart((s) => s.setQuantity);
   const removeItem = useCart((s) => s.removeItem);
-  const total = cartTotal(items);
+  const couponCode = useCart((s) => s.couponCode);
+  const setCouponCode = useCart((s) => s.setCouponCode);
+  const subtotal = cartTotal(items);
+  const { discount, payable } = useAppliedCoupon(subtotal);
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6">
@@ -39,7 +44,7 @@ function CartPage() {
                 className="size-24 shrink-0 overflow-hidden rounded-md bg-cream"
               >
                 {item.image ? (
-                  <img src={item.image} alt="" className="size-full object-cover" />
+                  <SmartImage src={item.image} alt="" className="size-full object-cover" />
                 ) : null}
               </Link>
               <div className="min-w-0 flex-1">
@@ -73,16 +78,22 @@ function CartPage() {
               </button>
             </div>
           ))}
-          <div className="flex flex-col items-stretch justify-between gap-4 rounded-xl bg-paper p-5 ring-1 ring-border sm:flex-row sm:items-center">
-            <div>
-              <p className="text-sm text-muted">Subtotal</p>
-              <p className="font-display text-2xl font-semibold tabular-nums">
-                {formatInr(total)}
-              </p>
+          <div className="flex flex-col gap-5 rounded-xl bg-paper p-5 ring-1 ring-border">
+            <CouponBox subtotal={subtotal} code={couponCode} onApply={setCouponCode} />
+            <div className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-end">
+              <div>
+                <p className="text-sm text-muted">Subtotal {formatInr(subtotal)}</p>
+                {discount > 0 ? (
+                  <p className="text-sm text-forest">Coupon {couponCode} −{formatInr(discount)}</p>
+                ) : null}
+                <p className="font-display text-2xl font-semibold tabular-nums">
+                  {formatInr(payable)}
+                </p>
+              </div>
+              <Button asChild size="lg">
+                <Link to="/checkout">Checkout</Link>
+              </Button>
             </div>
-            <Button asChild size="lg">
-              <Link to="/checkout">Checkout</Link>
-            </Button>
           </div>
         </div>
       )}

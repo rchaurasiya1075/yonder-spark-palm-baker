@@ -4,9 +4,11 @@ import type { CartItem, Product } from "./types";
 
 type CartState = {
   items: CartItem[];
+  couponCode: string | null;
   addItem: (product: Product, quantity?: number) => void;
   setQuantity: (productId: string, quantity: number) => void;
   removeItem: (productId: string) => void;
+  setCouponCode: (code: string | null) => void;
   clear: () => void;
 };
 
@@ -14,6 +16,7 @@ export const useCart = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
+      couponCode: null,
       addItem: (product, quantity = 1) => {
         const qty = Math.max(1, Math.min(quantity, Math.max(1, product.stock)));
         const existing = get().items.find((i) => i.productId === product.id);
@@ -60,7 +63,8 @@ export const useCart = create<CartState>()(
       },
       removeItem: (productId) =>
         set({ items: get().items.filter((i) => i.productId !== productId) }),
-      clear: () => set({ items: [] }),
+      setCouponCode: (code) => set({ couponCode: code }),
+      clear: () => set({ items: [], couponCode: null }),
     }),
     { name: "pinaki-cart-v1" },
   ),

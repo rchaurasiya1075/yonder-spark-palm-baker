@@ -100,7 +100,14 @@ function AccountPage() {
                 <p className="mt-2 text-sm text-muted">
                   {order.items.map((i) => `${i.productName} × ${i.quantity}`).join(" · ")}
                 </p>
-                <p className="mt-1 text-sm font-semibold tabular-nums">{formatInr(order.total)}</p>
+                <p className="mt-1 text-sm font-semibold tabular-nums">
+                  {formatInr(order.total)}
+                  {order.couponCode ? (
+                    <span className="ml-2 text-xs font-medium text-forest">
+                      {order.couponCode} applied
+                    </span>
+                  ) : null}
+                </p>
                 <div className="mt-4">
                   <OrderTracker status={order.orderStatus} />
                 </div>

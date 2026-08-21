@@ -3,6 +3,7 @@ import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-ro
 import { toast } from "sonner";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { cartTotal, useCart } from "@/lib/cart";
+import { CouponBox, useAppliedCoupon } from "@/components/coupon-box";
 import { getFirebaseCurrentUser } from "@/lib/firebase-auth";
 import { fbEnsureUser, fbGetProductById, fbPlaceOrder } from "@/lib/firebase-data";
 import { formatInr } from "@/lib/format";
@@ -21,6 +22,8 @@ function CheckoutPage() {
   const { user, isPending } = useCurrentUserState();
   const items = useCart((s) => s.items);
   const clear = useCart((s) => s.clear);
+  const couponCode = useCart((s) => s.couponCode);
+  const setCouponCode = useCart((s) => s.setCouponCode);
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -29,6 +32,8 @@ function CheckoutPage() {
   const [pincode, setPincode] = useState("");
   const [payment, setPayment] = useState<PaymentMethod>("cod");
   const [busy, setBusy] = useState(false);
+  const subtotal = cartTotal(items);
+  const { discount, payable } = useAppliedCoupon(subtotal);
 
   useEffect(() => {
     if (user?.displayName) {
@@ -42,8 +47,6 @@ function CheckoutPage() {
   if (!user) {
     return <Navigate to="/login" search={{ redirect: "/checkout" }} />;
   }
-
-  const total = cartTotal(items);
 
   if (items.length === 0) {
     return (
@@ -82,6 +85,7 @@ function CheckoutPage() {
           pincode,
           paymentMethod: payment,
           items: lines,
+          couponCode,
         });
         await fbEnsureUser({
           userId: fbUser.uid,
@@ -203,10 +207,23 @@ function CheckoutPage() {
               </li>
             ))}
           </ul>
-          <p className="flex justify-between border-t border-border pt-3 font-semibold">
-            <span>Total</span>
-            <span className="tabular-nums">{formatInr(total)}</span>
-          </p>
+          <CouponBox subtotal={subtotal} code={couponCode} onApply={setCouponCode} />
+          <div className="space-y-1 border-t border-border pt-3 text-sm">
+            <p className="flex justify-between text-muted">
+              <span>Subtotal</span>
+              <span className="tabular-nums">{formatInr(subtotal)}</span>
+            </p>
+            {discount > 0 ? (
+              <p className="flex justify-between text-forest">
+                <span>Coupon {couponCode}</span>
+                <span className="tabular-nums">−{formatInr(discount)}</span>
+              </p>
+            ) : null}
+            <p className="flex justify-between font-semibold text-ink">
+              <span>Total</span>
+              <span className="tabular-nums">{formatInr(payable)}</span>
+            </p>
+          </div>
           <Button type="submit" className="w-full" disabled={busy} size="lg">
             {busy ? "Placing order…" : "Place order"}
           </Button>

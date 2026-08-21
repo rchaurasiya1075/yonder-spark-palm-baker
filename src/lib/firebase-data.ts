@@ -12,7 +12,7 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import { toDriveViewUrl } from "@/lib/drive";
+import { extractYouTubeId, normalizeImageUrls, normalizeVideoUrl } from "@/lib/drive";
 import { getFirebaseDb, isFirebaseConfigured, FIRESTORE_COLLECTIONS } from "@/lib/firebase";
 import { slugify, makeId, makeOrderId } from "@/lib/utils";
 import type {
@@ -72,12 +72,52 @@ function pickName(data: Record<string, unknown>): string {
 
 function imageList(data: Record<string, unknown>): string[] {
   const urls: string[] = [];
-  if (Array.isArray(data.imageUrls)) {
-    for (const item of data.imageUrls) urls.push(toDriveViewUrl(asStr(item)));
+  const buckets: unknown[] = [
+    data.imageUrls,
+    data.image_urls,
+    data.images,
+    data.gallery,
+    data.photos,
+    data.imageUrl,
+    data.image,
+  ];
+  for (const bucket of buckets) {
+    if (Array.isArray(bucket)) {
+      for (const item of bucket) urls.push(asStr(item));
+    } else if (typeof bucket === "string" && bucket.trim()) {
+      const raw = bucket.trim();
+      if (raw.startsWith("[")) {
+        try {
+          const parsed = JSON.parse(raw) as unknown;
+          if (Array.isArray(parsed)) {
+            for (const item of parsed) urls.push(asStr(item));
+            continue;
+          }
+        } catch {
+          /* not json */
+        }
+      }
+      for (const part of raw.split(/[\n,]+/)) urls.push(part);
+    }
   }
-  const single = asStr(data.image);
-  if (single) urls.push(toDriveViewUrl(single));
-  return [...new Set(urls.filter(Boolean))];
+  return normalizeImageUrls(urls);
+}
+
+function pickVideo(data: Record<string, unknown>, images: string[]): string | null {
+  const direct = normalizeVideoUrl(asStr(data.videoUrl) || asStr(data.video));
+  if (direct) return direct;
+  const buckets = [data.imageUrls, data.images, data.image];
+  for (const bucket of buckets) {
+    const values = Array.isArray(bucket) ? bucket : [bucket];
+    for (const item of values) {
+      const text = asStr(item);
+      if (extractYouTubeId(text)) return normalizeVideoUrl(text);
+    }
+  }
+  for (const img of images) {
+    if (extractYouTubeId(img)) return normalizeVideoUrl(img);
+  }
+  return null;
 }
 
 export function mapFirestoreProduct(id: string, data: Record<string, unknown>): Product {
@@ -91,7 +131,8 @@ export function mapFirestoreProduct(id: string, data: Record<string, unknown>): 
   const mrp = mrpRaw == null || asStr(mrpRaw) === "" ? null : asNum(mrpRaw);
   const created = asStr(data.createdAt) || new Date().toISOString();
   const updated = asStr(data.updatedAt) || created;
-  const video = asStr(data.videoUrl) || asStr(data.video) || null;
+  const video = pickVideo(data, imageList(data));
+  const images = imageList(data);
   return {
     id,
     slug: asStr(data.slug) || slugify(name) || id,
@@ -102,7 +143,7 @@ export function mapFirestoreProduct(id: string, data: Record<string, unknown>): 
     price,
     mrp: mrp != null && mrp >= price ? mrp : mrp != null ? price : null,
     unit: asStr(data.unit) || "jar",
-    imageUrls: imageList(data),
+    imageUrls: images.filter((u) => !extractYouTubeId(u)),
     videoUrl: video,
     stock,
     active,
@@ -193,6 +234,9 @@ export function mapFirestoreOrder(id: string, data: Record<string, unknown>): Or
     paymentStatus: mapPaymentStatus(data.paymentStatus, method),
     orderStatus: status,
     total: asNum(data.total),
+    subtotal: asNum(data.subtotal) || asNum(data.total) + asNum(data.discount),
+    discount: asNum(data.discount),
+    couponCode: asStr(data.couponCode) || null,
     createdAt: created,
     updatedAt: asStr(data.updatedAt) || created,
     items: mapItems(data.items),
@@ -266,8 +310,10 @@ export async function fbUpsertProduct(input: ProductInput & { slug?: string }): 
     price: input.price,
     mrp: input.mrp ?? null,
     unit: input.unit,
-    imageUrls: input.imageUrls,
-    videoUrl: input.videoUrl ?? null,
+    imageUrls: normalizeImageUrls(input.imageUrls ?? []),
+    videoUrl: normalizeVideoUrl(input.videoUrl) ?? normalizeVideoUrl(
+      (input.imageUrls ?? []).find((u) => extractYouTubeId(u)) ?? "",
+    ),
     stock: input.stock,
     active: input.active,
     featured: Boolean(input.featured),
@@ -316,13 +362,21 @@ export type FbCheckout = {
   pincode: string;
   paymentMethod: PaymentMethod;
   items: { product: Product; quantity: number }[];
+  couponCode?: string | null;
 };
 
 export async function fbPlaceOrder(input: FbCheckout): Promise<Order> {
   const db = dbOrThrow();
   const now = new Date().toISOString();
   const orderId = makeOrderId();
-  const total = input.items.reduce((sum, line) => sum + line.product.price * line.quantity, 0);
+  const subtotal = input.items.reduce((sum, line) => sum + line.product.price * line.quantity, 0);
+  const { resolveCouponDiscount } = await import("@/lib/firebase-coupons");
+  const coupon = await resolveCouponDiscount(input.couponCode, subtotal);
+  if (input.couponCode?.trim() && coupon.error) {
+    throw new Error(coupon.error);
+  }
+  const discount = coupon.discount;
+  const total = Math.max(0, subtotal - discount);
   const paymentStatus: PaymentStatus = input.paymentMethod === "online" ? "paid" : "pending";
   const note =
     input.paymentMethod === "online"
@@ -362,7 +416,9 @@ export async function fbPlaceOrder(input: FbCheckout): Promise<Order> {
       price: line.product.price,
     })),
     total,
-    discount: 0,
+    subtotal,
+    discount,
+    couponCode: coupon.coupon?.code ?? "",
     status: "placed",
     orderStatus: "placed",
     paymentMethod: input.paymentMethod === "cod" ? "COD" : "Online",

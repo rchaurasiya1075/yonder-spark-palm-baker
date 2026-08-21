@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql } from "@/lib/db";
-import { normalizeImageUrls, toDriveViewUrl } from "@/lib/drive";
+import { normalizeImageUrls, normalizeVideoUrl } from "@/lib/drive";
 import { isFirebaseConfigured } from "@/lib/firebase";
 import {
   fbEnsureUser,
@@ -112,7 +112,7 @@ function validateProduct(input: ProductInput): ProductInput {
   }
   const stock = Math.max(0, Math.floor(Number(input.stock) || 0));
   const imageUrls = normalizeImageUrls(input.imageUrls ?? []);
-  const videoUrl = input.videoUrl?.trim() ? toDriveViewUrl(input.videoUrl) : null;
+  const videoUrl = normalizeVideoUrl(input.videoUrl);
   return {
     ...input,
     name,

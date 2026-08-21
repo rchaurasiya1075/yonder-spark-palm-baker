@@ -3,6 +3,7 @@ import { CATEGORY_LABEL } from "@/lib/constants";
 import type { Product } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { PriceTag } from "@/components/price-tag";
+import { SmartImage } from "@/components/smart-image";
 
 export function ProductCard({ product }: { product: Product }) {
   const img = product.imageUrls[0];
@@ -15,7 +16,7 @@ export function ProductCard({ product }: { product: Product }) {
     >
       <div className="relative aspect-square overflow-hidden bg-cream">
         {img ? (
-          <img
+          <SmartImage
             src={img}
             alt={product.name}
             className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"

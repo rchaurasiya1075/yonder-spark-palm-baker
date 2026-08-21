@@ -9,6 +9,7 @@ import { getMyOrder } from "@/lib/server/orders";
 import { STATUS_LABEL, type Order } from "@/lib/types";
 import { OrderTracker } from "@/components/order-tracker";
 import { Badge } from "@/components/ui/badge";
+import { SmartImage } from "@/components/smart-image";
 
 export const Route = createFileRoute("/orders/$orderId")({
   component: OrderPage,
@@ -103,7 +104,7 @@ function OrderPage() {
           {order.items.map((item) => (
             <li key={item.id} className="flex items-center gap-3">
               {item.imageUrl ? (
-                <img
+                <SmartImage
                   src={item.imageUrl}
                   alt=""
                   className="size-14 rounded-md object-cover"
@@ -129,10 +130,26 @@ function OrderPage() {
             </li>
           ))}
         </ul>
-        <p className="mt-4 flex justify-between border-t border-border pt-3 font-semibold">
-          <span>Total</span>
-          <span className="tabular-nums">{formatInr(order.total)}</span>
-        </p>
+        <div className="mt-4 space-y-1 border-t border-border pt-3 text-sm">
+          {order.discount ? (
+            <>
+              <p className="flex justify-between text-muted">
+                <span>Subtotal</span>
+                <span className="tabular-nums">
+                  {formatInr(order.subtotal ?? order.total + order.discount)}
+                </span>
+              </p>
+              <p className="flex justify-between text-forest">
+                <span>Coupon {order.couponCode}</span>
+                <span className="tabular-nums">−{formatInr(order.discount)}</span>
+              </p>
+            </>
+          ) : null}
+          <p className="flex justify-between font-semibold">
+            <span>Total</span>
+            <span className="tabular-nums">{formatInr(order.total)}</span>
+          </p>
+        </div>
       </section>
 
       <section className="mt-6 rounded-xl bg-paper p-6 ring-1 ring-border">

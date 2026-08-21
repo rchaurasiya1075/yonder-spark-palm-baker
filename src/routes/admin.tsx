@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { toDriveViewUrl } from "@/lib/drive";
+import { toDriveViewUrl, extractYouTubeId, normalizeVideoUrl, toVideoEmbed } from "@/lib/drive";
 import { formatDateTime, formatInr } from "@/lib/format";
 import { firebaseConfig, isFirebaseConfigured } from "@/lib/firebase";
 import { getFirebaseCurrentUser } from "@/lib/firebase-auth";
@@ -14,6 +14,14 @@ import {
   fbUpdateOrderStatus,
   fbUpsertProduct,
 } from "@/lib/firebase-data";
+import {
+  fbDeleteCoupon,
+  fbEnsureDefaultCoupons,
+  fbListCoupons,
+  fbUpsertCoupon,
+} from "@/lib/firebase-coupons";
+import { formatCouponDeal, type Coupon, type CouponType } from "@/lib/coupons";
+import { SmartImage } from "@/components/smart-image";
 import {
   listAdminProducts,
   listAllOrders,
@@ -37,7 +45,7 @@ export const Route = createFileRoute("/admin")({
 
 const UNLOCK_KEY = "pinaki-owner-desk";
 
-type Tab = "products" | "orders" | "packing";
+type Tab = "products" | "orders" | "packing" | "offers";
 
 async function loadAdminProducts() {
   if (isFirebaseConfigured) {
@@ -110,6 +118,11 @@ function AdminPage() {
   }, []);
 
   async function loadDesk() {
+    try {
+      await fbEnsureDefaultCoupons();
+    } catch {
+      /* optional */
+    }
     const [p, o] = await Promise.all([loadAdminProducts(), loadAdminOrders()]);
     setProducts(p);
     setOrders(o);
@@ -235,6 +248,7 @@ function AdminPage() {
         {(
           [
             ["products", "Products"],
+            ["offers", "Offers"],
             ["orders", "Orders"],
             ["packing", `Packing (${packing.length})`],
           ] as const
@@ -260,6 +274,7 @@ function AdminPage() {
           }}
         />
       ) : null}
+      {tab === "offers" ? <OffersDesk /> : null}
       {tab === "orders" ? (
         <OrdersDesk
           orders={orders}
@@ -322,12 +337,36 @@ function ProductsDesk({
   const [draftUrl, setDraftUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const editing = Boolean(form.id);
+  const videoPreview = toVideoEmbed(form.videoUrl);
+
+  function addMedia() {
+    const raw = draftUrl.trim();
+    if (!raw) return;
+    const yt = extractYouTubeId(raw);
+    if (yt) {
+      setForm({ ...form, videoUrl: `https://www.youtube.com/watch?v=${yt}` });
+      setDraftUrl("");
+      toast.success("YouTube video attached");
+      return;
+    }
+    const url = toDriveViewUrl(raw);
+    if (!url) return;
+    if (form.imageUrls.includes(url)) {
+      setDraftUrl("");
+      return;
+    }
+    setForm({ ...form, imageUrls: [...form.imageUrls, url] });
+    setDraftUrl("");
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     try {
-      await persistProduct(form);
+      await persistProduct({
+        ...form,
+        videoUrl: normalizeVideoUrl(form.videoUrl),
+      });
       toast.success(editing ? "Product updated" : "Product added");
       setForm(emptyForm());
       await onChange();
@@ -346,7 +385,7 @@ function ProductsDesk({
             key={p.id}
             className="flex flex-col gap-3 rounded-xl bg-paper p-4 ring-1 ring-border sm:flex-row sm:items-center"
           >
-            <img
+            <SmartImage
               src={p.imageUrls[0]}
               alt=""
               className="size-16 rounded-md object-cover"
@@ -490,31 +529,29 @@ function ProductsDesk({
         <div className="space-y-2">
           <Label>Images (Google Drive share links)</Label>
           <p className="text-xs text-muted">
-            Paste a Drive link shared as “Anyone with the link”. Multiple images supported.
+            Drive file → Share → Anyone with the link. Paste the full share URL. YouTube
+            links go in the video field (or paste here — they attach as video).
           </p>
           <div className="flex gap-2">
             <Input
               placeholder="https://drive.google.com/file/d/…/view"
               value={draftUrl}
               onChange={(e) => setDraftUrl(e.target.value)}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                const url = toDriveViewUrl(draftUrl);
-                if (!url) return;
-                setForm({ ...form, imageUrls: [...form.imageUrls, url] });
-                setDraftUrl("");
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addMedia();
+                }
               }}
-            >
+            />
+            <Button type="button" variant="outline" onClick={addMedia}>
               Add
             </Button>
           </div>
           <ul className="space-y-2">
             {form.imageUrls.map((url, i) => (
               <li key={url + i} className="flex items-center gap-2">
-                <img src={url} alt="" className="size-12 rounded object-cover ring-1 ring-border" />
+                <SmartImage src={url} alt="" className="size-12 rounded object-cover ring-1 ring-border" />
                 <span className="min-w-0 flex-1 truncate text-xs text-muted">{url}</span>
                 <button
                   type="button"
@@ -533,13 +570,28 @@ function ProductsDesk({
           </ul>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="pvideo">Video URL (YouTube or mp4)</Label>
+          <Label htmlFor="pvideo">YouTube or Drive video</Label>
           <Input
             id="pvideo"
             value={form.videoUrl ?? ""}
             onChange={(e) => setForm({ ...form, videoUrl: e.target.value })}
-            placeholder="https://www.youtube.com/watch?v=…"
+            placeholder="https://youtu.be/… or YouTube watch link"
           />
+          {videoPreview ? (
+            <div className="overflow-hidden rounded-md ring-1 ring-border">
+              {videoPreview.kind === "file" ? (
+                <video src={videoPreview.src} controls className="aspect-video w-full" />
+              ) : (
+                <iframe
+                  title="Video preview"
+                  src={videoPreview.src}
+                  className="aspect-video w-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              )}
+            </div>
+          ) : null}
         </div>
         <div className="flex gap-2">
           <Button type="submit" disabled={busy} className="flex-1">
@@ -669,3 +721,202 @@ function PackingDesk({
     </div>
   );
 }
+
+function emptyCoupon(): Coupon {
+  return {
+    id: "",
+    code: "",
+    label: "",
+    type: "percent",
+    value: 10,
+    minOrder: 0,
+    maxDiscount: null,
+    active: true,
+    expiresAt: null,
+  };
+}
+
+function OffersDesk() {
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [form, setForm] = useState<Coupon>(emptyCoupon());
+  const [busy, setBusy] = useState(false);
+
+  async function refresh() {
+    try {
+      const rows = await fbListCoupons();
+      setCoupons(rows);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not load offers");
+    }
+  }
+
+  useEffect(() => {
+    void refresh();
+  }, []);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const saved = await fbUpsertCoupon({
+        ...form,
+        id: form.id || "",
+      });
+      toast.success(form.id ? "Offer updated" : "Offer added");
+      setForm(emptyCoupon());
+      await refresh();
+      void saved;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save offer");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_340px]">
+      <div className="space-y-3">
+        {coupons.length === 0 ? (
+          <p className="text-sm text-muted">
+            No offers in Firebase yet. Add PINAKI10 or another code on the right.
+          </p>
+        ) : null}
+        {coupons.map((coupon) => (
+          <div
+            key={coupon.id}
+            className="flex flex-col gap-3 rounded-xl bg-paper p-4 ring-1 ring-border sm:flex-row sm:items-center"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold tracking-wide">{coupon.code}</p>
+              <p className="text-xs text-muted">
+                {coupon.label} · {formatCouponDeal(coupon)}
+                {coupon.minOrder ? ` · min ₹${coupon.minOrder}` : ""}
+                {coupon.active ? "" : " · paused"}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={() => setForm(coupon)}>
+                Edit
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={async () => {
+                  await fbUpsertCoupon({ ...coupon, active: !coupon.active });
+                  await refresh();
+                }}
+              >
+                {coupon.active ? "Pause" : "Activate"}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={async () => {
+                  await fbDeleteCoupon(coupon.id);
+                  toast.success("Offer removed");
+                  await refresh();
+                }}
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <form onSubmit={submit} className="h-fit space-y-3 rounded-xl bg-paper p-5 ring-1 ring-border">
+        <h2 className="font-display text-xl font-semibold">
+          {form.id ? "Edit offer" : "New coupon"}
+        </h2>
+        <div className="space-y-1.5">
+          <Label htmlFor="ccode">Code</Label>
+          <Input
+            id="ccode"
+            value={form.code}
+            onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
+            placeholder="PINAKI10"
+            required
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="clabel">Offer line</Label>
+          <Input
+            id="clabel"
+            value={form.label}
+            onChange={(e) => setForm({ ...form, label: e.target.value })}
+            placeholder="Festival 10% off"
+            required
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="ctype">Type</Label>
+            <select
+              id="ctype"
+              className="flex h-11 w-full rounded-md border border-border bg-paper px-3 text-sm"
+              value={form.type}
+              onChange={(e) => setForm({ ...form, type: e.target.value as CouponType })}
+            >
+              <option value="percent">Percent %</option>
+              <option value="fixed">Fixed ₹</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cval">Value</Label>
+            <Input
+              id="cval"
+              type="number"
+              min={1}
+              value={form.value || ""}
+              onChange={(e) => setForm({ ...form, value: Number(e.target.value) })}
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cmin">Min order ₹</Label>
+            <Input
+              id="cmin"
+              type="number"
+              min={0}
+              value={form.minOrder}
+              onChange={(e) => setForm({ ...form, minOrder: Number(e.target.value) })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cmax">Max ₹ off</Label>
+            <Input
+              id="cmax"
+              type="number"
+              min={0}
+              value={form.maxDiscount ?? ""}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  maxDiscount: e.target.value === "" ? null : Number(e.target.value),
+                })
+              }
+            />
+          </div>
+        </div>
+        <label className="flex min-h-11 items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={form.active}
+            onChange={(e) => setForm({ ...form, active: e.target.checked })}
+          />
+          Active on shop
+        </label>
+        <div className="flex gap-2">
+          <Button type="submit" disabled={busy} className="flex-1">
+            {busy ? "Saving…" : form.id ? "Save offer" : "Add coupon"}
+          </Button>
+          {form.id ? (
+            <Button type="button" variant="ghost" onClick={() => setForm(emptyCoupon())}>
+              Cancel
+            </Button>
+          ) : null}
+        </div>
+      </form>
+    </div>
+  );
+}
+

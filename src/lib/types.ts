@@ -74,6 +74,9 @@ export type Order = {
   paymentStatus: PaymentStatus;
   orderStatus: OrderStatus;
   total: number;
+  subtotal?: number;
+  discount?: number;
+  couponCode?: string | null;
   createdAt: string;
   updatedAt: string;
   items: OrderItem[];

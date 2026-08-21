@@ -3,6 +3,7 @@ import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { OfferBar } from "@/components/offer-bar";
 import { Toaster } from "sonner";
 import { SITE } from "@/lib/constants";
 import { publicUrl } from "@/lib/public-url";
@@ -49,6 +50,7 @@ function RootShell() {
         <PreviewHostBridge />
         <AuthProvider>
           <SiteHeader />
+          <OfferBar />
           <Outlet />
           <SiteFooter />
           <Toaster
