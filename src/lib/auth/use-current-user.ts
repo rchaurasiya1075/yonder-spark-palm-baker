@@ -39,6 +39,23 @@ export type CurrentUserState = {
  * present (needed for Firestore rules), otherwise Better Auth.
  */
 export function useCurrentUserState(): CurrentUserState {
+  if (import.meta.env.VITE_GITHUB_PAGES === "1") {
+    // eslint-disable-next-line react-hooks/rules-of-hooks -- compile-time Pages flag
+    const firebase = useFirebaseUser();
+    if (firebase.isPending) return { user: null, isPending: true };
+    if (!firebase.user) return { user: null, isPending: false };
+    return {
+      user: {
+        id: firebase.user.uid,
+        displayName: firebase.user.displayName,
+        primaryEmail: firebase.user.email,
+        profileImageUrl: firebase.user.photoURL,
+        isDevFallback: false,
+      },
+      isPending: false,
+    };
+  }
+
   if (!authEnabled) return { user: DEV_USER, isPending: false };
   // eslint-disable-next-line react-hooks/rules-of-hooks -- authEnabled is constant for the app's lifetime
   const { data, isPending } = authClient.useSession();

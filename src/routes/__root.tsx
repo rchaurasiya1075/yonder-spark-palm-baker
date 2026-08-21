@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { Toaster } from "sonner";
 import { SITE } from "@/lib/constants";
+import { publicUrl } from "@/lib/public-url";
 import appCss from "../styles.css?url";
 
 const APP_NAME = SITE.name;
@@ -23,7 +24,7 @@ export const Route = createRootRoute({
       { name: "theme-color", content: "#F4EFE4" },
     ],
     links: [
-      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+      { rel: "icon", type: "image/svg+xml", href: publicUrl("favicon.svg") },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
@@ -31,8 +32,8 @@ export const Route = createRootRoute({
         href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Nunito+Sans:ital,opsz,wght@0,6..12,400;0,6..12,500;0,6..12,600;0,6..12,700;1,6..12,400&display=swap",
       },
       { rel: "stylesheet", href: appCss },
-      { rel: "manifest", href: "/__grok/manifest.webmanifest" },
-      { rel: "apple-touch-icon", href: "/__grok/icon-180.png" },
+      { rel: "manifest", href: publicUrl("__grok/manifest.webmanifest") },
+      { rel: "apple-touch-icon", href: publicUrl("__grok/icon-180.png") },
     ],
   }),
   component: RootShell,

@@ -90,6 +90,9 @@ function CheckoutPage() {
           phone,
         });
       } else {
+        if (import.meta.env.VITE_GITHUB_PAGES === "1") {
+          throw new Error("Please sign in again.");
+        }
         order = await placeOrder({
           data: {
             name,

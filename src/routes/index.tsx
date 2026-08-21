@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Leaf, ShieldCheck, Sprout, Wheat } from "lucide-react";
 import { CATEGORIES, SITE } from "@/lib/constants";
-import { listProducts } from "@/lib/server/catalog";
+import { loadProducts } from "@/lib/catalog-client";
+import { publicUrl } from "@/lib/public-url";
 import { ProductCard } from "@/components/product-card";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
-  loader: () => listProducts(),
+  loader: () => loadProducts(),
   component: Home,
 });
 
@@ -19,7 +20,7 @@ function Home() {
     <main>
       <section className="relative min-h-[78vh] overflow-hidden">
         <img
-          src="/images/hero-farm.jpg"
+          src={publicUrl("images/hero-farm.jpg")}
           alt="Mustard fields at PINAKI Farms"
           className="absolute inset-0 size-full object-cover"
         />

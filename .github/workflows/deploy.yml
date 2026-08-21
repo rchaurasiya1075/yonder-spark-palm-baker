@@ -1,8 +1,9 @@
-name: Deploy React App to GitHub Pages
+name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -10,36 +11,71 @@ permissions:
   id-token: write
 
 concurrency:
-  group: 'pages'
+  group: pages
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build static shop (Firebase)
+        env:
+          GITHUB_PAGES: "1"
+          VITE_GITHUB_PAGES: "1"
+          VITE_AUTH_ENABLED: "true"
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
+          VITE_FIREBASE_DATABASE_URL: ${{ secrets.VITE_FIREBASE_DATABASE_URL }}
+        run: npm run build:pages
+      - name: Collect Pages files
+        run: |
+          set -e
+          rm -rf pages-dist
+          mkdir -p pages-dist
+          if [ -f dist/client/index.html ] || [ -f dist/client/_shell.html ]; then SRC=dist/client
+          elif [ -f dist/index.html ] || [ -f dist/_shell.html ]; then SRC=dist
+          elif [ -f .output/public/index.html ] || [ -f .output/public/_shell.html ]; then SRC=.output/public
+          else
+            echo "Build output not found"
+            find . -name '*.html' | head -40
+            exit 1
+          fi
+          cp -R "$SRC"/. pages-dist/
+          if [ ! -f pages-dist/index.html ]; then
+            if [ -f pages-dist/_shell.html ]; then
+              cp pages-dist/_shell.html pages-dist/index.html
+            else
+              echo "No index.html or _shell.html in $SRC"
+              ls -la pages-dist | head
+              exit 1
+            fi
+          fi
+          cp pages-dist/index.html pages-dist/404.html
+          touch pages-dist/.nojekyll
+          ls -la pages-dist | head
+          test -f pages-dist/index.html
+          test -d pages-dist/assets
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: pages-dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build project
-        run: npm run build
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: './dist' # Agar build `.output/public` me banta hai toh 'dist' ki jagah './.output/public' likhein
-
-      - name: Deploy to GitHub Pages
-        id: deployment
+      - id: deployment
         uses: actions/deploy-pages@v4

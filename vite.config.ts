@@ -117,9 +117,10 @@ function authPopupPlugin(): Plugin {
   };
 }
 
+const githubPages = process.env.GITHUB_PAGES === "1";
+
 export default defineConfig(({ command, isPreview }) => ({
-  // GitHub Pages ke subpath ke liye zaruri hai
-  base: process.env.NODE_ENV === "production" ? "/yonder-spark-palm-baker/" : "/",
+  base: githubPages ? "/yonder-spark-palm-baker/" : "/",
   server: {
     host: "0.0.0.0",
     port: 8080,
@@ -137,12 +138,11 @@ export default defineConfig(({ command, isPreview }) => ({
     appEnvPlugin(),
     grokPwaPlugin(),
     tailwindcss(),
-    tanstackStart(),
-    ...(command === "build" || isPreview
+    tanstackStart(githubPages ? { spa: { enabled: true }, prerender: { enabled: false } } : {}),
+    ...(!githubPages && (command === "build" || isPreview)
       ? [
           nitro({
-            // Vercel ki bajaye static target use karein GitHub Pages ke liye
-            preset: "github-pages",
+            preset: "vercel",
             serverDir: "./server",
           }),
         ]

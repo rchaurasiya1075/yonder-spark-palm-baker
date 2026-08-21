@@ -4,7 +4,9 @@ Homemade achar, A2 bilona ghee, and wooden-kolhu cold pressed oils.
 
 **Ghar Ka Swaad, Shuddhata Ke Saath**
 
-Customer shop + owner desk: catalog, cart, checkout, accounts, order tracking. Cart stays in the browser. Products, stock, and orders persist in the database.
+Live shop: [rchaurasiya1075.github.io/yonder-spark-palm-baker](https://rchaurasiya1075.github.io/yonder-spark-palm-baker/)
+
+Customer shop + owner desk. Cart stays in the browser. Products, customers, and orders persist in Firebase (`pinaki-1fe56`).
 
 ---
 

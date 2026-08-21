@@ -25,7 +25,9 @@ function AccountPage() {
     const fbUser = getFirebaseCurrentUser();
     const load = fbUser
       ? fbListMyOrders(fbUser.uid, fbUser.email)
-      : listMyOrders();
+      : import.meta.env.VITE_GITHUB_PAGES === "1"
+        ? Promise.resolve([])
+        : listMyOrders();
     load
       .then((rows) => {
         if (!cancelled) setOrders(rows);

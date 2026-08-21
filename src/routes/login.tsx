@@ -29,26 +29,31 @@ function Login() {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    let firebaseOk = false;
     try {
       const { firebaseEmailSignIn } = await import("@/lib/firebase-auth");
       const result = await firebaseEmailSignIn(email, password);
-      firebaseOk = result.ok;
-      if (result.error && !result.unauthorizedDomain) {
-        setError(result.error);
-        setBusy(false);
+      if (result.ok) {
+        await navigate({ to: dest });
         return;
       }
+      if (import.meta.env.VITE_GITHUB_PAGES === "1") {
+        setError(result.error ?? "Could not sign in.");
+        return;
+      }
+      if (result.error && !result.unauthorizedDomain) {
+        setError(result.error);
+      }
+      const { error: err } = await authClient.signIn.email({ email, password });
+      if (err) {
+        setError(err.message ?? "Could not sign in.");
+        return;
+      }
+      await navigate({ to: dest });
     } catch {
-      /* Firebase Auth may be blocked on this host; fall through */
+      setError("Could not sign in.");
+    } finally {
+      setBusy(false);
     }
-    const { error: err } = await authClient.signIn.email({ email, password });
-    setBusy(false);
-    if (err && !firebaseOk) {
-      setError(err.message ?? "Could not sign in.");
-      return;
-    }
-    await navigate({ to: dest });
   }
 
   return (
@@ -85,7 +90,7 @@ function Login() {
           {busy ? "Signing in…" : "Sign in"}
         </Button>
       </form>
-      {authEnabled ? (
+      {authEnabled && import.meta.env.VITE_GITHUB_PAGES !== "1" ? (
         <div className="mt-6 space-y-2">
           <p className="text-center text-xs text-muted">Or continue with</p>
           {GROK_PROVIDERS.map((p) => (

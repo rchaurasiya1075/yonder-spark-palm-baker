@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CATEGORIES } from "@/lib/constants";
-import { listProducts } from "@/lib/server/catalog";
+import { loadProducts } from "@/lib/catalog-client";
 import type { Category } from "@/lib/types";
 import { ProductCard } from "@/components/product-card";
 import { cn } from "@/lib/utils";
@@ -19,7 +19,7 @@ export const Route = createFileRoute("/shop")({
     return category ? { category } : {};
   },
   loaderDeps: ({ search }) => ({ category: search.category }),
-  loader: ({ deps }) => listProducts({ data: { category: deps.category } }),
+  loader: ({ deps }) => loadProducts({ category: deps.category }),
   component: ShopPage,
 });
 

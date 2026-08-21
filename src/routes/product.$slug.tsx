@@ -3,7 +3,7 @@ import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-ro
 import { toast } from "sonner";
 import { CATEGORY_LABEL } from "@/lib/constants";
 import { useCart } from "@/lib/cart";
-import { getProductBySlug, listProducts } from "@/lib/server/catalog";
+import { loadProductBySlug, loadProducts } from "@/lib/catalog-client";
 import { ProductGallery } from "@/components/product-gallery";
 import { ProductCard } from "@/components/product-card";
 import { PriceTag } from "@/components/price-tag";
@@ -13,9 +13,9 @@ import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/product/$slug")({
   loader: async ({ params }) => {
-    const product = await getProductBySlug({ data: params.slug });
+    const product = await loadProductBySlug(params.slug);
     if (!product || !product.active) throw notFound();
-    const related = (await listProducts({ data: { category: product.category } })).filter(
+    const related = (await loadProducts({ category: product.category })).filter(
       (p) => p.id !== product.id,
     );
     return { product, related: related.slice(0, 3) };

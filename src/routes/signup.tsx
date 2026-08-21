@@ -34,26 +34,31 @@ function Signup() {
     }
     setBusy(true);
     setError(null);
-    let firebaseOk = false;
     try {
       const { firebaseEmailSignUp } = await import("@/lib/firebase-auth");
       const result = await firebaseEmailSignUp(email, password, name);
-      firebaseOk = result.ok;
-      if (result.error && !result.unauthorizedDomain) {
-        setError(result.error);
-        setBusy(false);
+      if (result.ok) {
+        await navigate({ to: dest });
         return;
       }
+      if (import.meta.env.VITE_GITHUB_PAGES === "1") {
+        setError(result.error ?? "Could not create account.");
+        return;
+      }
+      if (result.error && !result.unauthorizedDomain) {
+        setError(result.error);
+      }
+      const { error: err } = await authClient.signUp.email({ email, password, name });
+      if (err) {
+        setError(err.message ?? "Could not create account.");
+        return;
+      }
+      await navigate({ to: dest });
     } catch {
-      /* Firebase Auth may be blocked on this host; fall through */
+      setError("Could not create account.");
+    } finally {
+      setBusy(false);
     }
-    const { error: err } = await authClient.signUp.email({ email, password, name });
-    setBusy(false);
-    if (err && !firebaseOk) {
-      setError(err.message ?? "Could not create account.");
-      return;
-    }
-    await navigate({ to: dest });
   }
 
   return (
@@ -100,7 +105,7 @@ function Signup() {
           {busy ? "Creating…" : "Create account"}
         </Button>
       </form>
-      {authEnabled ? (
+      {authEnabled && import.meta.env.VITE_GITHUB_PAGES !== "1" ? (
         <div className="mt-6 space-y-2">
           <p className="text-center text-xs text-muted">Or continue with</p>
           {GROK_PROVIDERS.map((p) => (

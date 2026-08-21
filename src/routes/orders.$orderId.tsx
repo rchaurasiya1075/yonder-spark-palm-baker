@@ -29,7 +29,9 @@ function OrderPage() {
           const mine = await fbListMyOrders(fbUser.uid, fbUser.email);
           return mine.find((o) => o.id === orderId) ?? null;
         })
-      : getMyOrder({ data: { orderId } });
+      : import.meta.env.VITE_GITHUB_PAGES === "1"
+        ? Promise.resolve(null)
+        : getMyOrder({ data: { orderId } });
     load
       .then((row) => {
         if (!cancelled) setOrder(row);

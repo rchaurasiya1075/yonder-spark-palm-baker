@@ -219,6 +219,19 @@ function waitForPopupToken(popup: Window): Promise<string | null> {
  * preview the local clear is sufficient, so it always resolves.
  */
 export async function signOut(redirectTo = "/"): Promise<void> {
+  try {
+    const { firebaseSignOutSafe } = await import("@/lib/firebase-auth");
+    await firebaseSignOutSafe();
+  } catch {
+    /* optional */
+  }
+
+  if (import.meta.env.VITE_GITHUB_PAGES === "1") {
+    const base = import.meta.env.BASE_URL || "/";
+    window.location.href = redirectTo === "/" ? base : redirectTo;
+    return;
+  }
+
   await runSignOut({
     livePreview: inLivePreview(),
     hasBearer: Boolean(getBearerToken()),
@@ -227,12 +240,6 @@ export async function signOut(redirectTo = "/"): Promise<void> {
     requestSignOut: async () => {
       const { error } = await authClient.signOut();
       if (error) throw new Error(error.message ?? "Sign-out failed");
-      try {
-        const { firebaseSignOutSafe } = await import("@/lib/firebase-auth");
-        await firebaseSignOutSafe();
-      } catch {
-        /* optional */
-      }
     },
     clearToken: () => setBearerToken(null),
     redirect: () => {
