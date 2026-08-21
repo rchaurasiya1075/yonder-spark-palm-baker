@@ -63,9 +63,35 @@ jobs:
           fi
           cp pages-dist/index.html pages-dist/404.html
           touch pages-dist/.nojekyll
+          mkdir -p pages-dist/__grok
+          if [ ! -f pages-dist/__grok/manifest.webmanifest ]; then
+            cat > pages-dist/__grok/manifest.webmanifest <<'EOF'
+{
+  "name": "PINAKI Farms",
+  "short_name": "PINAKI",
+  "id": "/yonder-spark-palm-baker/",
+  "start_url": "/yonder-spark-palm-baker/",
+  "scope": "/yonder-spark-palm-baker/",
+  "display": "standalone",
+  "background_color": "#F4EFE4",
+  "theme_color": "#B85C38",
+  "icons": [
+    {
+      "src": "/yonder-spark-palm-baker/__grok/icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
+EOF
+          fi
           ls -la pages-dist | head
           test -f pages-dist/index.html
           test -d pages-dist/assets
+          test -d pages-dist/products
+          test -f pages-dist/__grok/icon-180.png
+          test -f pages-dist/__grok/manifest.webmanifest
       - uses: actions/upload-pages-artifact@v3
         with:
           path: pages-dist

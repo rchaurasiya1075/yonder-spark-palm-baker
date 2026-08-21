@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { readdirSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
@@ -118,9 +118,48 @@ function authPopupPlugin(): Plugin {
 }
 
 const githubPages = process.env.GITHUB_PAGES === "1";
+const PAGES_BASE = "/yonder-spark-palm-baker/";
+
+function githubPagesManifestPlugin(): Plugin {
+  return {
+    name: "pinaki-pages-manifest",
+    apply: "build",
+    closeBundle() {
+      if (!githubPages) return;
+      const manifest = `${JSON.stringify(
+        {
+          name: "PINAKI Farms",
+          short_name: "PINAKI",
+          id: PAGES_BASE,
+          start_url: PAGES_BASE,
+          scope: PAGES_BASE,
+          display: "standalone",
+          background_color: "#F4EFE4",
+          theme_color: "#B85C38",
+          icons: [
+            {
+              src: `${PAGES_BASE}__grok/icon-180.png`,
+              sizes: "180x180",
+              type: "image/png",
+              purpose: "any",
+            },
+          ],
+        },
+        null,
+        2,
+      )}\n`;
+      for (const root of ["dist/client", "dist"]) {
+        if (!existsSync(root)) continue;
+        const dir = join(root, "__grok");
+        mkdirSync(dir, { recursive: true });
+        writeFileSync(join(dir, "manifest.webmanifest"), manifest);
+      }
+    },
+  };
+}
 
 export default defineConfig(({ command, isPreview }) => ({
-  base: githubPages ? "/yonder-spark-palm-baker/" : "/",
+  base: githubPages ? PAGES_BASE : "/",
   server: {
     host: "0.0.0.0",
     port: 8080,
@@ -137,6 +176,7 @@ export default defineConfig(({ command, isPreview }) => ({
     authPopupPlugin(),
     appEnvPlugin(),
     grokPwaPlugin(),
+    githubPagesManifestPlugin(),
     tailwindcss(),
     tanstackStart(githubPages ? { spa: { enabled: true }, prerender: { enabled: false } } : {}),
     ...(!githubPages && (command === "build" || isPreview)

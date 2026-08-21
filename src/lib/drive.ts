@@ -1,5 +1,7 @@
 /** Google Drive + YouTube helpers. Drive `uc?export=view` often 403s — we prefer lh3/thumbnail. */
 
+import { publicUrl } from "@/lib/public-url";
+
 export function extractDriveId(input: string): string | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
@@ -91,12 +93,14 @@ export function mediaCandidates(input: string): string[] {
   if (yt) {
     return [youtubeThumb(yt), `https://i.ytimg.com/vi/${yt}/mqdefault.jpg`];
   }
-  if (
-    trimmed.startsWith("/") ||
-    trimmed.startsWith("data:") ||
-    trimmed.startsWith("blob:")
-  ) {
+  if (trimmed.startsWith("data:") || trimmed.startsWith("blob:")) {
     return [trimmed];
+  }
+  if (trimmed.startsWith("//")) {
+    return [`https:${trimmed}`];
+  }
+  if (trimmed.startsWith("/")) {
+    return [publicUrl(trimmed)];
   }
   const drive = driveImageCandidates(trimmed);
   if (drive.length) {
@@ -153,6 +157,9 @@ export function toVideoEmbed(url: string | null | undefined): VideoEmbed | null 
   const driveId = extractDriveId(trimmed);
   if (driveId) {
     return { kind: "drive", src: `https://drive.google.com/file/d/${driveId}/preview` };
+  }
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) {
+    return { kind: "file", src: publicUrl(trimmed) };
   }
   return { kind: "file", src: trimmed };
 }
