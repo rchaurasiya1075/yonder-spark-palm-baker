@@ -26,8 +26,33 @@ export const isFirebaseConfigured = Boolean(
 
 export const OWNER_EMAIL = "grokaia94@gmail.com";
 
+/** Gmails that can open the owner desk. */
+export const OWNER_EMAILS = [
+  "grokaia94@gmail.com",
+  "pinakifarms@gmail.com",
+  "admin@pinakifarms.com",
+] as const;
+
 export function isOwnerEmail(email?: string | null) {
-  return (email ?? "").trim().toLowerCase() === OWNER_EMAIL;
+  return OWNER_EMAILS.includes((email ?? "").trim().toLowerCase() as (typeof OWNER_EMAILS)[number]);
+}
+
+/** Daily 6-digit desk code (IST). Only used to create a new owner account. */
+const OWNER_DESK_SECRET = "PINAKI-DESK-7K2M";
+
+export function getOwnerDeskCode(now = new Date()) {
+  const day = now.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  const raw = `${OWNER_DESK_SECRET}|${day}|${OWNER_EMAIL}`;
+  let h = 2166136261;
+  for (let i = 0; i < raw.length; i++) {
+    h ^= raw.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return String(Math.abs(h % 1_000_000)).padStart(6, "0");
+}
+
+export function isOwnerDeskCode(input: string) {
+  return input.trim() === getOwnerDeskCode();
 }
 
 export const FIRESTORE_COLLECTIONS = {
