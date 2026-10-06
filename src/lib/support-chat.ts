@@ -148,21 +148,28 @@ export function listenThreads(onChange: (rows: SupportThread[]) => void) {
   const db = getFirebaseDb();
   if (!db) return () => {};
   const q = query(collection(db, "supportThreads"), orderBy("updatedAt", "desc"));
-  return onSnapshot(q, (snap) => {
-    onChange(
-      snap.docs.map((d) => {
-        const data = d.data();
-        return {
-          id: d.id,
-          visitorId: String(data.visitorId ?? ""),
-          customerName: String(data.customerName ?? "Customer"),
-          phone: String(data.phone ?? ""),
-          lastMessage: String(data.lastMessage ?? ""),
-          updatedAt: millis(data.updatedAt),
-          unreadStaff: Number(data.unreadStaff ?? 0),
-          status: data.status === "closed" ? "closed" : "open",
-        };
-      }),
-    );
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      onChange(
+        snap.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            visitorId: String(data.visitorId ?? ""),
+            customerName: String(data.customerName ?? "Customer"),
+            phone: String(data.phone ?? ""),
+            lastMessage: String(data.lastMessage ?? ""),
+            updatedAt: millis(data.updatedAt),
+            unreadStaff: Number(data.unreadStaff ?? 0),
+            status: data.status === "closed" ? "closed" : "open",
+          };
+        }),
+      );
+    },
+    (err) => {
+      console.error(err);
+      onChange([]);
+    },
+  );
 }
