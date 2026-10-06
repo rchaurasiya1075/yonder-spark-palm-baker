@@ -174,8 +174,13 @@ function Composer({
           value={text}
           rows={1}
           placeholder={placeholder}
-          className="max-h-24 min-h-11 flex-1 resize-none rounded-2xl bg-white px-3 py-2.5 text-sm text-[#231c16] outline-none ring-1 ring-black/10"
+          enterKeyHint="send"
+          className="max-h-24 min-h-11 flex-1 resize-none rounded-2xl bg-white px-3 py-2.5 text-base text-[#231c16] outline-none ring-1 ring-black/10"
           onChange={(e) => setText(e.target.value)}
+          onFocus={(e) => {
+            const node = e.currentTarget;
+            window.setTimeout(() => node.scrollIntoView({ block: "end", behavior: "smooth" }), 180);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
@@ -339,13 +344,18 @@ function useViewportFrame(active: boolean) {
       });
     };
     sync();
-    window.visualViewport?.addEventListener("resize", sync);
-    window.visualViewport?.addEventListener("scroll", sync);
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", sync);
+    vv?.addEventListener("scroll", sync);
     window.addEventListener("resize", sync);
+    window.addEventListener("focusin", sync);
+    const timer = window.setInterval(sync, 250);
     return () => {
-      window.visualViewport?.removeEventListener("resize", sync);
-      window.visualViewport?.removeEventListener("scroll", sync);
+      vv?.removeEventListener("resize", sync);
+      vv?.removeEventListener("scroll", sync);
       window.removeEventListener("resize", sync);
+      window.removeEventListener("focusin", sync);
+      window.clearInterval(timer);
     };
   }, [active]);
   return frame;
@@ -384,8 +394,8 @@ export function SupportWidget() {
   }, [open]);
   const unread = lines.filter((line) => line.from === "admin" && line.at > seen).length;
   const panelStyle = frame.narrow
-    ? { top: frame.top, height: frame.height, left: 0, right: 0, borderRadius: 0 }
-    : { right: 16, bottom: 88, width: 390, height: 620 };
+    ? { top: frame.top, left: 0, width: "100%", height: frame.height, borderRadius: 0 }
+    : { right: 16, bottom: 24, width: 390, height: Math.min(620, frame.height - 40) };
 
   return (
     <>
