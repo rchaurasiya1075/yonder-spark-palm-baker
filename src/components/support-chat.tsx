@@ -225,6 +225,14 @@ export function SupportInbox() {
   }, [threads, query]);
   const thread = threads.find((row) => row.userId === open) || null;
   useEffect(() => {
+    if (!open) return;
+    const state = { pinakiChat: open };
+    window.history.pushState(state, "");
+    const onPop = () => setOpen(null);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [open]);
+  useEffect(() => {
     if (!thread) return;
     setNote(thread.note);
   }, [thread?.userId]);
@@ -264,7 +272,7 @@ export function SupportInbox() {
           <>
             <header className="flex items-center justify-between gap-3 border-b border-[#e4d8c8] px-4 py-3">
               <div className="min-w-0">
-                <button type="button" className="mb-1 text-xs text-[#7a6557] md:hidden" onClick={() => setOpen(null)}>Back</button>
+                <button type="button" className="mb-1 text-xs text-[#7a6557] md:hidden" onClick={() => { if (window.history.state?.pinakiChat) window.history.back(); else setOpen(null); }}>Back</button>
                 <p className="truncate font-semibold">{thread.name}</p>
                 <p className="text-xs text-[#7a6557]">{thread.phone || thread.email || "Customer"} · {thread.status}</p>
               </div>
@@ -348,6 +356,10 @@ export function SupportWidget() {
     if (!open) return;
     setSeen(new Date().toISOString());
     void markCustomerSeen().catch(() => undefined);
+    window.history.pushState({ pinakiWidget: 1 }, "");
+    const onPop = () => setOpen(false);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
   }, [open]);
   const unread = lines.filter((line) => line.from === "admin" && line.at > seen).length;
   const quick = ["Where is my order?", "Delivery time?", "Product help"];
@@ -364,7 +376,7 @@ export function SupportWidget() {
               <p className="text-sm font-semibold">PINAKI Support</p>
               <p className="text-[11px] text-[#f4efe4]/80"><span className="mr-1 inline-block size-2 rounded-full bg-[#86efac]" />{typing ? "typing…" : "Online"}</p>
             </div>
-            <button type="button" onClick={() => setOpen(false)} aria-label="Close"><X className="size-5" /></button>
+            <button type="button" onClick={() => { if (window.history.state?.pinakiWidget) window.history.back(); else setOpen(false); }} aria-label="Close"><X className="size-5" /></button>
           </header>
           {!name.trim() && (
             <div className="grid shrink-0 gap-2 border-b border-[#e4d8c8] bg-[#fbf7f0] p-3">
