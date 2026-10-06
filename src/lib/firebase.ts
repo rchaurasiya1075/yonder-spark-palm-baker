@@ -63,6 +63,7 @@ export const FIRESTORE_COLLECTIONS = {
   coupons: "coupons",
   handles: "handles",
   categories: "categories",
+  supportThreads: "supportThreads",
 } as const;
 
 export function getFirebaseApp(): FirebaseApp | null {

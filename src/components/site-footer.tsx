@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { SITE } from "@/lib/constants";
+import { openSupportChat } from "@/components/support-chat";
 
 export function SiteFooter() {
   return (
@@ -49,6 +50,11 @@ export function SiteFooter() {
               <Link to="/cart" className="hover:underline">
                 Cart
               </Link>
+            </li>
+            <li>
+              <button type="button" className="hover:underline" onClick={() => openSupportChat()}>
+                Chat support
+              </button>
             </li>
           </ul>
         </div>

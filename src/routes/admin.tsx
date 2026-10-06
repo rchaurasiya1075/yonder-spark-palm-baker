@@ -17,6 +17,7 @@ import {
   prepareDesk,
 } from "@/lib/farm-desk";
 import { OrdersDesk, PackingDesk, ProductsDesk } from "@/components/farm-desks";
+import { SupportDesk } from "@/components/support-desk";
 import {
   fbDeleteCoupon,
   fbListCoupons,
@@ -149,7 +150,7 @@ function OwnerAuth() {
   );
 }
 
-type Tab = "products" | "orders" | "packing" | "offers" | "customers" | "team" | "categories";
+type Tab = "products" | "orders" | "packing" | "offers" | "customers" | "team" | "categories" | "chat";
 
 function AdminPage() {
   const { user, isPending } = useCurrentUserState();
@@ -293,6 +294,7 @@ function AdminPage() {
             ["packing", `Packing (${packing.length})`],
             ["customers", `Customers (${customers.filter((u) => u.role === "customer").length})`],
             ["team", `Team (${staffCount})`],
+            ["chat", "Chat"],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -342,6 +344,7 @@ function AdminPage() {
           onChange={async () => setCustomers(await loadDeskCustomers())}
         />
       ) : null}
+      {tab === "chat" ? <SupportDesk /> : null}
     </main>
   );
 }

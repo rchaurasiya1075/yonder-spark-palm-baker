@@ -4,6 +4,7 @@ import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { OfferBar } from "@/components/offer-bar";
+import { SupportChat } from "@/components/support-chat";
 import { Toaster } from "sonner";
 import { SITE } from "@/lib/constants";
 import { publicUrl } from "@/lib/public-url";
@@ -53,6 +54,7 @@ function RootShell() {
           <OfferBar />
           <Outlet />
           <SiteFooter />
+          <SupportChat />
           <Toaster
             position="top-center"
             toastOptions={{

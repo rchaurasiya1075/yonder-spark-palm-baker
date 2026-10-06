@@ -106,6 +106,32 @@ service cloud.firestore {
         || (signedIn() && resource.data.uid == request.auth.uid);
     }
 
+    match /supportThreads/{threadId} {
+      allow get: if true;
+      allow list: if isDesk();
+      allow create: if request.resource.data.visitorId is string
+        && request.resource.data.visitorId.size() >= 8
+        && request.resource.data.visitorId.size() <= 64
+        && request.resource.data.status == 'open';
+      allow update: if isDesk()
+        || request.resource.data.visitorId == resource.data.visitorId;
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        allow read: if true;
+        allow create: if (
+          request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 1000
+          && (
+            (request.resource.data.from == 'customer')
+            || (isDesk() && request.resource.data.from == 'staff')
+          )
+        );
+        allow update, delete: if isAdmin();
+      }
+    }
+
     match /profiles/{userId} {
       allow read: if isSelf(userId) || isAdmin();
       allow create: if (isSelf(userId)

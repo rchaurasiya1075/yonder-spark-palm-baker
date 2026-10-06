@@ -13,6 +13,7 @@ import {
   prepareDesk,
 } from "@/lib/farm-desk";
 import { OrdersDesk, PackingDesk, ProductsDesk } from "@/components/farm-desks";
+import { SupportDesk } from "@/components/support-desk";
 import type { Order, Product, ShopCategory } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,7 +84,7 @@ function StaffAuth() {
   );
 }
 
-type Tab = "products" | "orders" | "packing";
+type Tab = "products" | "orders" | "packing" | "chat";
 
 function StaffPage() {
   const { user, isPending } = useCurrentUserState();
@@ -200,6 +201,7 @@ function StaffPage() {
             ["orders", "Tracking"],
             ["packing", `Packing (${packing.length})`],
             ["products", "Products"],
+            ["chat", "Chat"],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -232,6 +234,7 @@ function StaffPage() {
           onChange={async () => setOrders(await loadDeskOrders())}
         />
       ) : null}
+      {tab === "chat" ? <SupportDesk /> : null}
     </main>
   );
 }
