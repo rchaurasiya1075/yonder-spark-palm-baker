@@ -1,8 +1,8 @@
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SupportInbox } from "@/components/support-chat";
-import { isOwnerEmail } from "@/lib/firebase";
-import { getFirebaseCurrentUser } from "@/lib/firebase-auth";
-import { logoutSupportAgent, useSupportAgent } from "@/lib/support-staff";
+import { DeskTeam } from "@/components/desk-team";
+import { canManageTeam, hasAccess, logoutDesk, useDeskSession } from "@/lib/desk-accounts";
 
 export const Route = createFileRoute("/support-desk")({
   component: SupportDeskPage,
@@ -10,32 +10,36 @@ export const Route = createFileRoute("/support-desk")({
 });
 
 function SupportDeskPage() {
-  const agent = useSupportAgent();
-  const owner = isOwnerEmail(getFirebaseCurrentUser()?.email);
-  if (!agent && !owner) {
+  const session = useDeskSession();
+  const [tab, setTab] = useState<"chat" | "team">("chat");
+  if (!session) {
     return (
       <main className="grid min-h-[70vh] place-items-center bg-[#07080a] px-4 text-center text-white">
         <div>
-          <p className="text-sm text-white/70">Support employees sign in with the user id created by the owner.</p>
-          <Link to="/support-login" className="mt-4 inline-block text-sm underline">Support sign in</Link>
+          <p className="text-sm text-white/70">Pehle desk user id aur pin se sign in karo.</p>
+          <Link to="/support-login" className="mt-4 inline-block text-sm underline">Desk sign in</Link>
         </div>
       </main>
     );
   }
+  const team = canManageTeam(session);
+  const chat = hasAccess(session, "chat");
   return (
     <main className="min-h-dvh bg-[#111b21] px-4 py-4 text-white">
-      <header className="mb-4 flex items-center justify-between">
+      <header className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-semibold">Customer support</h1>
-          <p className="text-xs text-white/50">{agent ? agent.name : "Owner"} · each customer has a separate chat</p>
+          <h1 className="text-lg font-semibold">PINAKI desk</h1>
+          <p className="text-xs text-white/50">{session.name} · {session.id} · {session.role}</p>
         </div>
-        {agent ? (
-          <button type="button" className="text-sm text-white/60" onClick={() => logoutSupportAgent()}>Log out</button>
-        ) : (
-          <Link to="/admin" className="text-sm text-white/60">Owner desk</Link>
-        )}
+        <button type="button" className="text-sm text-white/60" onClick={() => logoutDesk()}>Log out</button>
       </header>
-      <SupportInbox />
+      <div className="mb-4 flex gap-2">
+        {chat && <button type="button" onClick={() => setTab("chat")} className={`rounded-full px-3 py-1 text-sm ${tab === "chat" ? "bg-[#00a884]" : "bg-white/10"}`}>Chat</button>}
+        {team && <button type="button" onClick={() => setTab("team")} className={`rounded-full px-3 py-1 text-sm ${tab === "team" ? "bg-[#00a884]" : "bg-white/10"}`}>Create login</button>}
+      </div>
+      {tab === "team" && team ? <DeskTeam /> : null}
+      {tab === "chat" && chat ? <SupportInbox /> : null}
+      {!chat && !team ? <p className="text-sm text-white/60">Is login pe koi access nahi diya gaya.</p> : null}
     </main>
   );
 }
