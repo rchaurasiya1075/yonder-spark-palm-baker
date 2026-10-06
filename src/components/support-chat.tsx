@@ -325,6 +325,32 @@ export function openSupportChat() {
   window.dispatchEvent(new Event(OPEN_EVENT));
 }
 
+function useViewportFrame(active: boolean) {
+  const [frame, setFrame] = useState({ top: 0, height: 640, narrow: false });
+  useEffect(() => {
+    if (!active) return;
+    const sync = () => {
+      const vv = window.visualViewport;
+      const narrow = window.innerWidth < 720;
+      setFrame({
+        top: narrow && vv ? vv.offsetTop : 0,
+        height: narrow && vv ? vv.height : 640,
+        narrow,
+      });
+    };
+    sync();
+    window.visualViewport?.addEventListener("resize", sync);
+    window.visualViewport?.addEventListener("scroll", sync);
+    window.addEventListener("resize", sync);
+    return () => {
+      window.visualViewport?.removeEventListener("resize", sync);
+      window.visualViewport?.removeEventListener("scroll", sync);
+      window.removeEventListener("resize", sync);
+    };
+  }, [active]);
+  return frame;
+}
+
 export function SupportWidget() {
   const { user } = useCurrentUserState();
   const [open, setOpen] = useState(false);
@@ -333,9 +359,13 @@ export function SupportWidget() {
   const [seen, setSeen] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [ready, setReady] = useState(false);
+  const frame = useViewportFrame(open);
   useEffect(() => {
-    setName(localStorage.getItem("pinaki-support-name") || user?.displayName || "");
+    const saved = localStorage.getItem("pinaki-support-name") || user?.displayName || "";
+    setName(saved);
     setPhone(localStorage.getItem("pinaki-support-phone") || "");
+    setReady(Boolean(saved));
     const onOpen = () => setOpen(true);
     window.addEventListener(OPEN_EVENT, onOpen);
     return () => window.removeEventListener(OPEN_EVENT, onOpen);
@@ -343,53 +373,73 @@ export function SupportWidget() {
   useEffect(() => watchMySupport(setLines, setTyping), [user?.id]);
   useEffect(() => {
     if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const at = new Date().toISOString();
     setSeen(at);
     void markCustomerSeen().catch(() => undefined);
-  }, [open, lines.length]);
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
   const unread = lines.filter((line) => line.from === "admin" && line.at > seen).length;
+  const panelStyle = frame.narrow
+    ? { top: frame.top, height: frame.height, left: 0, right: 0, borderRadius: 0 }
+    : { right: 16, bottom: 88, width: 390, height: 620 };
 
   return (
     <>
       {open && (
-        <section className="fixed inset-x-3 bottom-[4.75rem] z-50 flex max-h-[min(680px,calc(100dvh-6.5rem))] min-h-[420px] flex-col overflow-hidden rounded-3xl bg-[#f7f1e8] text-[#231c16] shadow-2xl ring-1 ring-black/10 sm:inset-x-auto sm:right-4 sm:w-[390px]">
-          <header className="flex shrink-0 items-center gap-3 bg-[#1f6b4a] px-4 py-3 text-white">
-            <span className="grid size-10 place-items-center rounded-full bg-white/15 text-sm font-semibold">PF</span>
+        <section
+          className="fixed z-[80] flex flex-col overflow-hidden bg-[#efe6d6] text-[#3b2a22] shadow-2xl sm:rounded-2xl sm:ring-1 sm:ring-[#e4d8c8]"
+          style={panelStyle}
+        >
+          <header className="flex shrink-0 items-center gap-3 bg-[#4a5d3f] px-3 py-3 text-[#fbf7f0]">
+            <button type="button" className="grid size-9 place-items-center rounded-full hover:bg-white/10" onClick={() => setOpen(false)} aria-label="Close">
+              <X className="size-5" />
+            </button>
+            <span className="grid size-10 place-items-center rounded-full bg-[#f4efe4] text-sm font-semibold text-[#4a5d3f]">P</span>
             <div className="min-w-0 flex-1">
-              <p className="font-semibold">PINAKI Support</p>
-              <p className="text-[11px] text-white/80">{typing ? "Support type kar raha hai…" : "Order, delivery, product"}</p>
+              <p className="font-semibold leading-tight">PINAKI Farms</p>
+              <p className="text-[11px] text-[#f4efe4]/80">{typing ? "typing…" : "online"}</p>
             </div>
-            <button type="button" className="grid size-9 place-items-center rounded-full hover:bg-[#efe7dc]" onClick={() => setOpen(false)} aria-label="Close chat"><X className="size-5" /></button>
           </header>
-          <div className="grid shrink-0 grid-cols-2 gap-2 border-b border-black/5 bg-white px-3 py-2">
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Naam" className="h-10 rounded-xl bg-[#f7f1e8] px-3 text-sm outline-none" />
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Mobile" className="h-10 rounded-xl bg-[#f7f1e8] px-3 text-sm outline-none" />
-          </div>
-          <div className="flex shrink-0 gap-2 overflow-x-auto bg-white px-3 pb-2">
-            {["Order status", "Delivery", "Product"].map((chip) => (
-              <button key={chip} type="button" className="shrink-0 rounded-full bg-[#efe7dc] px-3 py-1 text-xs font-semibold" onClick={() => void sendSupport({ name: name.trim() || "Customer", email: user?.primaryEmail || "", phone, text: chip }).then(() => { localStorage.setItem("pinaki-support-name", name.trim() || "Customer"); localStorage.setItem("pinaki-support-phone", phone.trim()); }).catch((err) => toast.error(err instanceof Error ? err.message : "Message nahi gaya."))}>
-                {chip}
-              </button>
-            ))}
-          </div>
-          <Bubbles lines={lines} mine="user" seen={seen} />
-          <Composer
-            placeholder="Message likho"
-            onType={(typingNow) => void setCustomerTyping(typingNow).catch(() => undefined)}
-            onSend={async (text, image) => {
-              if (!name.trim()) throw new Error("Pehle naam likho.");
-              localStorage.setItem("pinaki-support-name", name.trim());
-              localStorage.setItem("pinaki-support-phone", phone.trim());
-              await sendSupport({ name: name.trim(), email: user?.primaryEmail || "", phone, text, image });
-            }}
-          />
+          {!ready ? (
+            <form
+              className="flex flex-1 flex-col justify-end gap-3 bg-[#f4efe4] p-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!name.trim()) return;
+                localStorage.setItem("pinaki-support-name", name.trim());
+                localStorage.setItem("pinaki-support-phone", phone.trim());
+                setReady(true);
+              }}
+            >
+              <p className="text-sm text-[#7a6557]">Chat shuru karne ke liye naam likho. Jaise WhatsApp pe pehli baar name set hota hai.</p>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Aapka naam" className="h-12 rounded-xl bg-white px-3 text-sm outline-none ring-1 ring-[#e4d8c8]" required />
+              <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Mobile, optional" inputMode="tel" className="h-12 rounded-xl bg-white px-3 text-sm outline-none ring-1 ring-[#e4d8c8]" />
+              <button type="submit" className="h-12 rounded-full bg-[#b85c38] font-semibold text-white">Chat shuru karo</button>
+            </form>
+          ) : (
+            <>
+              <Bubbles lines={lines} mine="user" seen={seen} />
+              <Composer
+                placeholder="Message"
+                onType={(typingNow) => void setCustomerTyping(typingNow).catch(() => undefined)}
+                onSend={async (text, image) => {
+                  await sendSupport({ name: name.trim(), email: user?.primaryEmail || "", phone, text, image });
+                }}
+              />
+            </>
+          )}
         </section>
       )}
-      <button type="button" onClick={() => setOpen((v) => !v)} className="fixed right-4 z-50 flex h-14 items-center gap-2 rounded-full bg-[#1f6b4a] px-4 text-sm font-semibold text-white shadow-lg" style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }} aria-label="Open support chat">
-        {open ? <X className="size-5" /> : <MessageCircle className="size-5" />}
-        {open ? "Close" : "Chat"}
-        {!open && unread > 0 && <span className="grid min-w-5 place-items-center rounded-full bg-[#e23b3b] px-1 text-[11px]">{unread}</span>}
-      </button>
+      {!open && (
+        <button type="button" onClick={() => setOpen(true)} className="fixed right-4 z-[70] grid size-14 place-items-center rounded-full bg-[#4a5d3f] text-white shadow-lg" style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }} aria-label="Open chat">
+          <MessageCircle className="size-7" />
+          {unread > 0 && <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full bg-[#b85c38] px-1 text-[11px]">{unread}</span>}
+        </button>
+      )}
     </>
   );
 }
