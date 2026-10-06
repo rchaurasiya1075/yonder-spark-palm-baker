@@ -1,5 +1,6 @@
 import { MessageCircle, Send, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import {
@@ -143,7 +144,7 @@ function Composer({
   }
 
   return (
-    <div className="shrink-0 border-t border-black/5 bg-[#f7f1e8] px-2 py-2">
+    <div className="shrink-0 border-t border-black/5 bg-[#f7f1e8] px-2 py-2" style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}>
       {quick.length > 0 && (
         <div className="mb-2 overflow-hidden rounded-xl bg-white">
           {quick.map((row) => (
@@ -330,32 +331,31 @@ export function openSupportChat() {
   window.dispatchEvent(new Event(OPEN_EVENT));
 }
 
+function readFrame() {
+  const vv = window.visualViewport;
+  const narrow = window.innerWidth < 720;
+  if (!vv) return { top: 0, height: window.innerHeight, narrow };
+  return { top: vv.offsetTop, height: vv.height, narrow };
+}
+
 function useViewportFrame(active: boolean) {
   const [frame, setFrame] = useState({ top: 0, height: 640, narrow: false });
   useEffect(() => {
     if (!active) return;
-    const sync = () => {
-      const vv = window.visualViewport;
-      const narrow = window.innerWidth < 720;
-      setFrame({
-        top: narrow && vv ? vv.offsetTop : 0,
-        height: narrow && vv ? vv.height : 640,
-        narrow,
-      });
-    };
+    const sync = () => setFrame(readFrame());
     sync();
     const vv = window.visualViewport;
     vv?.addEventListener("resize", sync);
     vv?.addEventListener("scroll", sync);
     window.addEventListener("resize", sync);
+    window.addEventListener("orientationchange", sync);
     window.addEventListener("focusin", sync);
-    const timer = window.setInterval(sync, 250);
     return () => {
       vv?.removeEventListener("resize", sync);
       vv?.removeEventListener("scroll", sync);
       window.removeEventListener("resize", sync);
+      window.removeEventListener("orientationchange", sync);
       window.removeEventListener("focusin", sync);
-      window.clearInterval(timer);
     };
   }, [active]);
   return frame;
@@ -394,14 +394,14 @@ export function SupportWidget() {
   }, [open]);
   const unread = lines.filter((line) => line.from === "admin" && line.at > seen).length;
   const panelStyle = frame.narrow
-    ? { top: frame.top, left: 0, width: "100%", height: frame.height, borderRadius: 0 }
-    : { right: 16, bottom: 24, width: 390, height: Math.min(620, frame.height - 40) };
+    ? { position: "fixed" as const, left: 0, right: 0, width: "100%", top: 0, height: frame.height, transform: `translate3d(0, ${frame.top}px, 0)`, borderRadius: 0, zIndex: 80 }
+    : { position: "fixed" as const, right: 16, bottom: 24, width: 390, height: Math.min(620, frame.height - 48), zIndex: 80 };
 
-  return (
+  const tree = (
     <>
       {open && (
         <section
-          className="fixed z-[80] flex flex-col overflow-hidden bg-[#efe6d6] text-[#3b2a22] shadow-2xl sm:rounded-2xl sm:ring-1 sm:ring-[#e4d8c8]"
+          className="flex flex-col overflow-hidden bg-[#efe6d6] text-[#3b2a22] shadow-2xl sm:rounded-2xl sm:ring-1 sm:ring-[#e4d8c8]"
           style={panelStyle}
         >
           <header className="flex shrink-0 items-center gap-3 bg-[#4a5d3f] px-3 py-3 text-[#fbf7f0]">
@@ -452,6 +452,7 @@ export function SupportWidget() {
       )}
     </>
   );
+  return typeof document === "undefined" ? tree : createPortal(tree, document.body);
 }
 
 export function SupportChat() {
