@@ -25,22 +25,22 @@ function SupportDeskPage() {
   const team = canManageTeam(session);
   const chat = hasAccess(session, "chat");
   return (
-    <main className="flex h-dvh flex-col overflow-hidden bg-[#111b21] px-3 py-3 text-white">
+    <main className="fixed inset-0 z-40 flex flex-col overflow-hidden bg-[#f4efe4] px-3 py-3 text-[#3b2a22]">
       <header className="mb-2 flex shrink-0 items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold">PINAKI desk</h1>
-          <p className="text-xs text-white/50">{session.name} · {session.id}</p>
+          <p className="text-xs text-[#7a6557]">{session.name} · {session.id}</p>
         </div>
-        <button type="button" className="text-sm text-white/60" onClick={() => logoutDesk()}>Log out</button>
+        <button type="button" className="text-sm text-[#7a6557]" onClick={() => logoutDesk()}>Log out</button>
       </header>
       <div className="mb-2 flex shrink-0 gap-2">
-        {chat && <button type="button" onClick={() => setTab("chat")} className={`rounded-full px-3 py-1 text-sm ${tab === "chat" ? "bg-[#00a884]" : "bg-white/10"}`}>Chat</button>}
-        {team && <button type="button" onClick={() => setTab("team")} className={`rounded-full px-3 py-1 text-sm ${tab === "team" ? "bg-[#00a884]" : "bg-white/10"}`}>Create login</button>}
+        {chat && <button type="button" onClick={() => setTab("chat")} className={`rounded-full px-3 py-1 text-sm ${tab === "chat" ? "bg-[#00a884]" : "bg-[#e4d8c8]"}`}>Chat</button>}
+        {team && <button type="button" onClick={() => setTab("team")} className={`rounded-full px-3 py-1 text-sm ${tab === "team" ? "bg-[#00a884]" : "bg-[#e4d8c8]"}`}>Create login</button>}
       </div>
       <div className="min-h-0 flex-1 overflow-hidden">
         {tab === "team" && team ? <div className="h-full overflow-y-auto"><DeskTeam /></div> : null}
         {tab === "chat" && chat ? <SupportInbox /> : null}
-        {!chat && !team ? <p className="text-sm text-white/60">Is login pe koi access nahi diya gaya.</p> : null}
+        {!chat && !team ? <p className="text-sm text-[#7a6557]">Is login pe koi access nahi diya gaya.</p> : null}
       </div>
     </main>
   );
