@@ -77,23 +77,23 @@ function Bubbles({
   }, [lines]);
   let lastDay = "";
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto bg-[#0b141a] px-3 py-3">
-      {lines.length === 0 && <p className="text-center text-sm text-white/50">No messages yet.</p>}
+    <div className="min-h-0 flex-1 space-y-2 overflow-y-auto bg-[#efe7dc] px-3 py-3">
+      {lines.length === 0 && <p className="pt-8 text-center text-sm text-[#6d6256]">Abhi koi message nahi.</p>}
       {lines.map((line) => {
         const day = dayLabel(line.at);
-        const showDay = day !== lastDay;
+        const showDay = day && day !== lastDay;
         lastDay = day;
         const own = line.from === mine;
         const read = !!seen && line.at <= seen;
         return (
           <div key={line.id}>
-            {showDay && <p className="my-2 text-center text-[11px] text-white/45">{day}</p>}
-            <div className={`max-w-[78%] rounded-lg px-2.5 py-1.5 text-sm shadow-sm ${own ? "ml-auto bg-[#005c4b] text-white" : "bg-[#202c33] text-white"}`}>
+            {showDay && <p className="mx-auto my-2 w-fit rounded-full bg-white/80 px-2 py-0.5 text-[11px] text-[#6d6256]">{day}</p>}
+            <div className={`max-w-[82%] rounded-2xl px-3 py-2 text-sm shadow-sm ${own ? "ml-auto rounded-br-md bg-[#1f6b4a] text-white" : "rounded-bl-md bg-white text-[#231c16]"}`}>
               {line.text && <p className="whitespace-pre-wrap leading-5">{line.text}</p>}
-              {line.image && <img src={line.image} alt="Shared" className="mt-1 max-h-52 rounded-md" />}
-              <p className={`mt-0.5 text-right text-[10px] ${own ? "text-white/70" : "text-white/45"}`}>
+              {line.image && <img src={line.image} alt="Shared" className="mt-1 max-h-52 rounded-lg" />}
+              <p className={`mt-1 text-right text-[10px] ${own ? "text-[#6d6256]" : "text-[#8a7d70]"}`}>
                 {clock(line.at)}
-                {own && <span className={read ? "text-[#53bdeb]" : ""}>  ✓✓</span>}
+                {own && <span className={read ? "text-[#b7e4ff]" : ""}> ✓✓</span>}
               </p>
             </div>
           </div>
@@ -136,26 +136,26 @@ function Composer({
       setText("");
       setImage("");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Message was not sent.");
+      toast.error(err instanceof Error ? err.message : "Message nahi gaya.");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="bg-[#202c33] px-2 py-2">
+    <div className="shrink-0 border-t border-black/5 bg-[#f7f1e8] px-2 py-2">
       {quick.length > 0 && (
-        <div className="mb-2 overflow-hidden rounded-lg bg-[#111b21]">
+        <div className="mb-2 overflow-hidden rounded-xl bg-white">
           {quick.map((row) => (
-            <button key={row.key} type="button" className="block w-full px-3 py-2 text-left text-sm text-white hover:bg-white/5" onClick={() => void send(row.text)}>
-              <span className="text-[#00a884]">{row.key}</span> {row.text}
+            <button key={row.key} type="button" className="block w-full px-3 py-2 text-left text-sm text-[#231c16] hover:bg-black/5" onClick={() => void send(row.text)}>
+              <span className="font-semibold text-[#1f6b4a]">{row.key}</span> {row.text}
             </button>
           ))}
         </div>
       )}
-      {image && <img src={image} alt="Ready to send" className="mb-2 h-14 rounded-md" />}
+      {image && <img src={image} alt="Ready to send" className="mb-2 h-14 rounded-lg" />}
       <div className="flex items-end gap-2">
-        <button type="button" className="grid size-10 place-items-center text-lg text-white/70" onClick={() => file.current?.click()} aria-label="Attach photo">
+        <button type="button" className="grid size-11 place-items-center rounded-full text-lg text-[#6d6256]" onClick={() => file.current?.click()} aria-label="Photo">
           +
         </button>
         <input
@@ -167,18 +167,15 @@ function Composer({
             const picked = e.target.files?.[0];
             e.target.value = "";
             if (!picked) return;
-            void shrinkImage(picked).then(setImage).catch((err) => toast.error(err instanceof Error ? err.message : "Photo failed"));
+            void shrinkImage(picked).then(setImage).catch((err) => toast.error(err instanceof Error ? err.message : "Photo nahi lagi"));
           }}
         />
         <textarea
           value={text}
           rows={1}
           placeholder={placeholder}
-          className="max-h-24 min-h-10 flex-1 resize-none rounded-lg bg-[#2a3942] px-3 py-2 text-sm text-white outline-none"
-          onChange={(e) => {
-            setText(e.target.value);
-            onType?.(!!e.target.value);
-          }}
+          className="max-h-24 min-h-11 flex-1 resize-none rounded-2xl bg-white px-3 py-2.5 text-sm text-[#231c16] outline-none ring-1 ring-black/10"
+          onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
@@ -186,7 +183,7 @@ function Composer({
             }
           }}
         />
-        <button type="button" disabled={busy} className="grid size-10 place-items-center rounded-full bg-[#00a884] text-white" onClick={() => void send()} aria-label="Send">
+        <button type="button" disabled={busy} className="grid size-11 place-items-center rounded-full bg-[#1f6b4a] text-white disabled:opacity-50" onClick={() => void send()} aria-label="Send">
           <Send className="size-4" />
         </button>
       </div>
@@ -232,14 +229,14 @@ export function SupportInbox() {
   }, [thread?.userId, thread?.unread]);
 
   return (
-    <div className="grid h-full min-h-0 overflow-hidden rounded-xl border border-white/10 bg-[#111b21] text-white lg:grid-cols-[280px_minmax(0,1fr)]">
-      <aside className={`${thread ? "hidden lg:flex" : "flex"} min-h-0 flex-col border-r border-white/10`}>
-        <div className="border-b border-white/10 p-3">
+    <div className="grid h-full min-h-0 overflow-hidden rounded-xl border border-black/10 bg-[#f7f1e8] text-[#231c16] lg:grid-cols-[280px_minmax(0,1fr)]">
+      <aside className={`${thread ? "hidden lg:flex" : "flex"} min-h-0 flex-col border-r border-black/10`}>
+        <div className="border-b border-black/10 p-3">
           <p className="text-sm font-semibold">Customer support</p>
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, phone, email" className="mt-2 h-9 w-full rounded-lg bg-[#202c33] px-3 text-sm outline-none" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, phone, email" className="mt-2 h-9 w-full rounded-lg bg-white px-3 text-sm outline-none" />
           <div className="mt-2 flex gap-1 text-[11px]">
             {(["all", "unread", "pending", "resolved"] as const).map((id) => (
-              <button key={id} type="button" onClick={() => setFilter(id)} className={`rounded-full px-2 py-1 capitalize ${filter === id ? "bg-[#00a884] text-white" : "bg-white/5 text-white/60"}`}>
+              <button key={id} type="button" onClick={() => setFilter(id)} className={`rounded-full px-2 py-1 capitalize ${filter === id ? "bg-[#1f6b4a] text-white" : "bg-white/5 text-[#6d6256]"}`}>
                 {id}
               </button>
             ))}
@@ -250,45 +247,45 @@ export function SupportInbox() {
             const last = row.lines.at(-1);
             return (
               <li key={row.userId}>
-                <button type="button" onClick={() => setOpen(row.userId)} className={`flex w-full gap-3 border-b border-white/5 px-3 py-3 text-left ${thread?.userId === row.userId ? "bg-white/10" : "hover:bg-white/5"}`}>
-                  <span className="relative grid size-10 shrink-0 place-items-center rounded-full bg-[#00a884] text-sm font-semibold">
+                <button type="button" onClick={() => setOpen(row.userId)} className={`flex w-full gap-3 border-b border-white/5 px-3 py-3 text-left ${thread?.userId === row.userId ? "bg-[#efe7dc]" : "hover:bg-black/5"}`}>
+                  <span className="relative grid size-10 shrink-0 place-items-center rounded-full bg-[#1f6b4a] text-sm font-semibold">
                     {(row.name || "U").slice(0, 1).toUpperCase()}
                     <span className={`absolute bottom-0 right-0 size-2.5 rounded-full border border-[#111b21] ${row.typing || Date.now() - new Date(last?.at || 0).getTime() < 120_000 ? "bg-[#00d26a]" : "bg-white/30"}`} />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center justify-between gap-2">
                       <span className="truncate text-sm font-medium">{row.name}</span>
-                      <span className="shrink-0 text-[10px] text-white/45">{clock(last?.at || "")}</span>
+                      <span className="shrink-0 text-[10px] text-[#8a7d70]">{clock(last?.at || "")}</span>
                     </span>
                     <span className="mt-0.5 flex items-center justify-between gap-2">
-                      <span className="truncate text-xs text-white/55">{row.typing ? "typing…" : last?.image && !last.text ? "Photo" : last?.text}</span>
-                      {row.unread > 0 && <span className="grid min-w-5 place-items-center rounded-full bg-[#00a884] px-1 text-[10px]">{row.unread}</span>}
+                      <span className="truncate text-xs text-[#6d6256]">{row.typing ? "typing…" : last?.image && !last.text ? "Photo" : last?.text}</span>
+                      {row.unread > 0 && <span className="grid min-w-5 place-items-center rounded-full bg-[#1f6b4a] px-1 text-[10px]">{row.unread}</span>}
                     </span>
                   </span>
                 </button>
               </li>
             );
           })}
-          {!shown.length && <li className="px-3 py-6 text-sm text-white/50">No complaints in this filter.</li>}
+          {!shown.length && <li className="px-3 py-6 text-sm text-[#6d6256]">No complaints in this filter.</li>}
         </ul>
       </aside>
 
       <section className={`${thread ? "flex" : "hidden lg:flex"} min-h-0 min-w-0 flex-col`}>
-        {!thread && <div className="grid flex-1 place-items-center text-sm text-white/50">Select a customer</div>}
+        {!thread && <div className="grid flex-1 place-items-center text-sm text-[#6d6256]">Select a customer</div>}
         {thread && (
           <>
-            <header className="flex items-center gap-3 border-b border-white/10 bg-[#202c33] px-3 py-2">
-              <button type="button" className="text-sm text-white/70 lg:hidden" onClick={() => setOpen(null)}>Back</button>
+            <header className="flex items-center gap-3 border-b border-black/10 bg-white px-3 py-2">
+              <button type="button" className="text-sm text-[#6d6256] lg:hidden" onClick={() => setOpen(null)}>Back</button>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{thread.name}</p>
-                <p className="text-[11px] text-white/50">{thread.typing ? "typing…" : thread.phone || thread.email || "Offline"}</p>
+                <p className="text-[11px] text-[#6d6256]">{thread.typing ? "typing…" : thread.phone || thread.email || "Offline"}</p>
               </div>
-              <button type="button" className="rounded-full bg-white/10 px-2 py-1 text-[11px]" onClick={() => void setSupportStatus(thread.userId, thread.status === "resolved" ? "pending" : "resolved")}>
+              <button type="button" className="rounded-full bg-[#efe7dc] px-2 py-1 text-[11px]" onClick={() => void setSupportStatus(thread.userId, thread.status === "resolved" ? "pending" : "resolved")}>
                 {thread.status === "resolved" ? "Resolved" : "Mark resolved"}
               </button>
-              <button type="button" className="text-xs text-white/60 xl:hidden" onClick={() => setInfo((v) => !v)}>Info</button>
+              <button type="button" className="text-xs text-[#6d6256] xl:hidden" onClick={() => setInfo((v) => !v)}>Info</button>
             </header>
-            {thread.status === "resolved" && <p className="bg-[#182229] py-1 text-center text-[11px] text-white/50">Marked resolved</p>}
+            {thread.status === "resolved" && <p className="bg-[#182229] py-1 text-center text-[11px] text-[#6d6256]">Marked resolved</p>}
             <Bubbles lines={thread.lines} mine="admin" seen={thread.customerSeen} />
             <Composer
               placeholder="Write a solution, or / for quick replies"
@@ -300,20 +297,20 @@ export function SupportInbox() {
       </section>
 
       {thread && (
-        <aside className={`${info ? "flex" : "hidden"} min-h-0 flex-col gap-4 overflow-y-auto border-l border-white/10 bg-[#111b21] p-4 xl:flex`}>
+        <aside className={`${info ? "flex" : "hidden"} min-h-0 flex-col gap-4 overflow-y-auto border-l border-black/10 bg-[#111b21] p-4 xl:flex`}>
           <div>
             <p className="text-xs uppercase tracking-wide text-white/40">Customer</p>
             <p className="mt-2 text-base font-medium">{thread.name}</p>
-            <p className="mt-1 text-sm text-white/70">{thread.email || "No email"}</p>
-            <p className="text-sm text-white/70">{thread.phone || "No phone"}</p>
+            <p className="mt-1 text-sm text-[#6d6256]">{thread.email || "No email"}</p>
+            <p className="text-sm text-[#6d6256]">{thread.phone || "No phone"}</p>
             <p className="mt-1 text-xs text-white/40">Joined {thread.createdAt ? dayLabel(thread.createdAt) : "—"}</p>
             <p className="mt-1 text-xs text-white/40">Status {thread.status}</p>
           </div>
-          <label className="block text-xs text-white/50">
+          <label className="block text-xs text-[#6d6256]">
             Internal note
-            <textarea value={note} onChange={(e) => setNote(e.target.value)} className="mt-1 h-28 w-full rounded-lg bg-[#202c33] p-2 text-sm text-white outline-none" placeholder="Only the admin team sees this" />
+            <textarea value={note} onChange={(e) => setNote(e.target.value)} className="mt-1 h-28 w-full rounded-lg bg-white p-2 text-sm text-white outline-none" placeholder="Only the admin team sees this" />
           </label>
-          <button type="button" className="rounded-lg bg-[#00a884] py-2 text-sm" onClick={() => void saveSupportNote(thread.userId, note).then(() => toast.success("Note saved")).catch((err) => toast.error(err instanceof Error ? err.message : "Note failed"))}>
+          <button type="button" className="rounded-lg bg-[#1f6b4a] py-2 text-sm" onClick={() => void saveSupportNote(thread.userId, note).then(() => toast.success("Note saved")).catch((err) => toast.error(err instanceof Error ? err.message : "Note failed"))}>
             Save note
           </button>
         </aside>
@@ -355,19 +352,26 @@ export function SupportWidget() {
   return (
     <>
       {open && (
-        <section className="fixed inset-x-3 bottom-20 z-50 flex h-[min(640px,calc(100dvh-6.5rem))] flex-col overflow-hidden rounded-2xl border border-black/10 bg-[#0b141a] text-white shadow-2xl sm:inset-x-auto sm:right-4 sm:w-[380px]">
-          <header className="flex shrink-0 items-center gap-2 bg-[#075e54] px-3 py-3 text-white">
+        <section className="fixed inset-x-3 bottom-[4.75rem] z-50 flex max-h-[min(680px,calc(100dvh-6.5rem))] min-h-[420px] flex-col overflow-hidden rounded-3xl bg-[#f7f1e8] text-[#231c16] shadow-2xl ring-1 ring-black/10 sm:inset-x-auto sm:right-4 sm:w-[390px]">
+          <header className="flex shrink-0 items-center gap-3 bg-[#1f6b4a] px-4 py-3 text-white">
+            <span className="grid size-10 place-items-center rounded-full bg-white/15 text-sm font-semibold">PF</span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold">PINAKI Support</p>
-              <p className="text-[11px] text-white/80">{typing ? "Support is typing…" : "Hum yahin reply karenge"}</p>
+              <p className="font-semibold">PINAKI Support</p>
+              <p className="text-[11px] text-white/80">{typing ? "Support type kar raha hai…" : "Order, delivery, product"}</p>
             </div>
-            <button type="button" className="grid size-9 place-items-center rounded-full hover:bg-white/10" onClick={() => setOpen(false)} aria-label="Close chat"><X className="size-5" /></button>
+            <button type="button" className="grid size-9 place-items-center rounded-full hover:bg-[#efe7dc]" onClick={() => setOpen(false)} aria-label="Close chat"><X className="size-5" /></button>
           </header>
-          <div className="grid shrink-0 gap-2 bg-[#111b21] p-3">
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Aapka naam" className="h-10 rounded-lg bg-[#202c33] px-3 text-sm text-white outline-none" />
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Mobile" className="h-10 rounded-lg bg-[#202c33] px-3 text-sm text-white outline-none" />
+          <div className="grid shrink-0 grid-cols-2 gap-2 border-b border-black/5 bg-white px-3 py-2">
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Naam" className="h-10 rounded-xl bg-[#f7f1e8] px-3 text-sm outline-none" />
+            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Mobile" className="h-10 rounded-xl bg-[#f7f1e8] px-3 text-sm outline-none" />
           </div>
-          {lines.length === 0 && <p className="shrink-0 bg-[#111b21] px-3 pb-2 text-sm text-white/70">Namaste. Order, delivery, ya product yahin likho.</p>}
+          <div className="flex shrink-0 gap-2 overflow-x-auto bg-white px-3 pb-2">
+            {["Order status", "Delivery", "Product"].map((chip) => (
+              <button key={chip} type="button" className="shrink-0 rounded-full bg-[#efe7dc] px-3 py-1 text-xs font-semibold" onClick={() => void sendSupport({ name: name.trim() || "Customer", email: user?.primaryEmail || "", phone, text: chip }).then(() => { localStorage.setItem("pinaki-support-name", name.trim() || "Customer"); localStorage.setItem("pinaki-support-phone", phone.trim()); }).catch((err) => toast.error(err instanceof Error ? err.message : "Message nahi gaya."))}>
+                {chip}
+              </button>
+            ))}
+          </div>
           <Bubbles lines={lines} mine="user" seen={seen} />
           <Composer
             placeholder="Message likho"
@@ -381,9 +385,10 @@ export function SupportWidget() {
           />
         </section>
       )}
-      <button type="button" onClick={() => setOpen((v) => !v)} className="fixed bottom-4 right-4 z-50 grid size-14 place-items-center rounded-full bg-[#00a884] text-white shadow-lg" style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }} aria-label="Open support chat">
-        {open ? <X className="size-6" /> : <MessageCircle className="size-7" />}
-        {!open && unread > 0 && <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full bg-[#e23b3b] px-1 text-[11px]">{unread}</span>}
+      <button type="button" onClick={() => setOpen((v) => !v)} className="fixed right-4 z-50 flex h-14 items-center gap-2 rounded-full bg-[#1f6b4a] px-4 text-sm font-semibold text-white shadow-lg" style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }} aria-label="Open support chat">
+        {open ? <X className="size-5" /> : <MessageCircle className="size-5" />}
+        {open ? "Close" : "Chat"}
+        {!open && unread > 0 && <span className="grid min-w-5 place-items-center rounded-full bg-[#e23b3b] px-1 text-[11px]">{unread}</span>}
       </button>
     </>
   );
