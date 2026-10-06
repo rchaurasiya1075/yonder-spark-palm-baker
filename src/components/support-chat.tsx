@@ -72,13 +72,15 @@ function Bubbles({
   mine: "user" | "admin";
   seen?: string;
 }) {
-  const end = useRef<HTMLDivElement>(null);
+  const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    end.current?.scrollIntoView({ block: "end" });
+    const node = box.current;
+    if (!node) return;
+    node.scrollTop = node.scrollHeight;
   }, [lines]);
   let lastDay = "";
   return (
-    <div className="min-h-0 flex-1 space-y-2 overflow-y-auto bg-[#efe7dc] px-3 py-3">
+    <div ref={box} className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain bg-[#efe7dc] px-3 py-3">
       {lines.length === 0 && <p className="pt-8 text-center text-sm text-[#6d6256]">Abhi koi message nahi.</p>}
       {lines.map((line) => {
         const day = dayLabel(line.at);
@@ -100,7 +102,7 @@ function Bubbles({
           </div>
         );
       })}
-      <div ref={end} />
+
     </div>
   );
 }
@@ -178,10 +180,6 @@ function Composer({
           enterKeyHint="send"
           className="h-11 max-h-11 flex-1 resize-none overflow-y-auto rounded-full bg-white px-4 py-2.5 text-base leading-5 text-[#231c16] outline-none ring-1 ring-black/10"
           onChange={(e) => setText(e.target.value)}
-          onFocus={(e) => {
-            const node = e.currentTarget;
-            window.setTimeout(() => node.scrollIntoView({ block: "nearest" }), 50);
-          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
@@ -308,15 +306,13 @@ function useViewportFrame(active: boolean) {
     const sync = () => {
       const vv = window.visualViewport;
       const narrow = window.innerWidth < 720;
-      setFrame({ top: narrow && vv ? vv.offsetTop : 0, height: narrow && vv ? vv.height : window.innerHeight, narrow });
+      setFrame({ top: 0, height: narrow && vv ? vv.height : window.innerHeight, narrow });
     };
     sync();
     window.visualViewport?.addEventListener("resize", sync);
-    window.visualViewport?.addEventListener("scroll", sync);
     window.addEventListener("resize", sync);
     return () => {
       window.visualViewport?.removeEventListener("resize", sync);
-      window.visualViewport?.removeEventListener("scroll", sync);
       window.removeEventListener("resize", sync);
     };
   }, [active]);
@@ -348,7 +344,7 @@ export function SupportWidget() {
   const unread = lines.filter((line) => line.from === "admin" && line.at > seen).length;
   const quick = ["Where is my order?", "Delivery time?", "Product help"];
   const panelStyle = frame.narrow
-    ? { position: "fixed" as const, left: 0, right: 0, top: frame.top, width: "100%", height: frame.height, zIndex: 80 }
+    ? { position: "fixed" as const, left: 0, right: 0, bottom: 0, width: "100%", height: frame.height, maxHeight: "100dvh", zIndex: 80 }
     : { position: "fixed" as const, right: 24, bottom: 96, width: 360, height: 520, zIndex: 80 };
 
   const tree = (
