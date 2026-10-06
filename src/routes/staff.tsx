@@ -13,7 +13,6 @@ import {
   prepareDesk,
 } from "@/lib/farm-desk";
 import { OrdersDesk, PackingDesk, ProductsDesk } from "@/components/farm-desks";
-import { SupportDesk } from "@/components/support-desk";
 import type { Order, Product, ShopCategory } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -234,7 +233,13 @@ function StaffPage() {
           onChange={async () => setOrders(await loadDeskOrders())}
         />
       ) : null}
-      {tab === "chat" ? <SupportDesk /> : null}
+      {tab === "chat" ? (
+        <div className="mt-8">
+          <Button asChild>
+            <Link to="/support-desk">Open customer chats</Link>
+          </Button>
+        </div>
+      ) : null}
     </main>
   );
 }

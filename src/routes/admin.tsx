@@ -17,7 +17,7 @@ import {
   prepareDesk,
 } from "@/lib/farm-desk";
 import { OrdersDesk, PackingDesk, ProductsDesk } from "@/components/farm-desks";
-import { SupportDesk } from "@/components/support-desk";
+import { SupportStaffPane } from "@/components/support-staff-pane";
 import {
   fbDeleteCoupon,
   fbListCoupons,
@@ -344,7 +344,14 @@ function AdminPage() {
           onChange={async () => setCustomers(await loadDeskCustomers())}
         />
       ) : null}
-      {tab === "chat" ? <SupportDesk /> : null}
+      {tab === "chat" ? (
+        <div className="mt-8">
+          <Button asChild>
+            <Link to="/support-desk">Open customer chats</Link>
+          </Button>
+          <SupportStaffPane />
+        </div>
+      ) : null}
     </main>
   );
 }

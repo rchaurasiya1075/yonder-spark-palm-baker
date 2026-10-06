@@ -19,6 +19,8 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ShopRouteImport } from './routes/shop'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as StaffRouteImport } from './routes/staff'
+import { Route as SupportDeskRouteImport } from './routes/support-desk'
+import { Route as SupportLoginRouteImport } from './routes/support-login'
 import { Route as OrdersOrderIdRouteImport } from './routes/orders.$orderId'
 import { Route as ProductSlugRouteImport } from './routes/product.$slug'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -73,6 +75,16 @@ const StaffRoute = StaffRouteImport.update({
   path: '/staff',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SupportDeskRoute = SupportDeskRouteImport.update({
+  id: '/support-desk',
+  path: '/support-desk',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SupportLoginRoute = SupportLoginRouteImport.update({
+  id: '/support-login',
+  path: '/support-login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrdersOrderIdRoute = OrdersOrderIdRouteImport.update({
   id: '/orders/$orderId',
   path: '/orders/$orderId',
@@ -100,6 +112,8 @@ export interface FileRoutesByFullPath {
   '/shop': typeof ShopRoute
   '/signup': typeof SignupRoute
   '/staff': typeof StaffRoute
+  '/support-desk': typeof SupportDeskRoute
+  '/support-login': typeof SupportLoginRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/product/$slug': typeof ProductSlugRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -115,6 +129,8 @@ export interface FileRoutesByTo {
   '/shop': typeof ShopRoute
   '/signup': typeof SignupRoute
   '/staff': typeof StaffRoute
+  '/support-desk': typeof SupportDeskRoute
+  '/support-login': typeof SupportLoginRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/product/$slug': typeof ProductSlugRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -131,6 +147,8 @@ export interface FileRoutesById {
   '/shop': typeof ShopRoute
   '/signup': typeof SignupRoute
   '/staff': typeof StaffRoute
+  '/support-desk': typeof SupportDeskRoute
+  '/support-login': typeof SupportLoginRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/product/$slug': typeof ProductSlugRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -194,6 +212,8 @@ export interface RootRouteChildren {
   ShopRoute: typeof ShopRoute
   SignupRoute: typeof SignupRoute
   StaffRoute: typeof StaffRoute
+  SupportDeskRoute: typeof SupportDeskRoute
+  SupportLoginRoute: typeof SupportLoginRoute
   OrdersOrderIdRoute: typeof OrdersOrderIdRoute
   ProductSlugRoute: typeof ProductSlugRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -271,6 +291,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StaffRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/support-desk': {
+      id: '/support-desk'
+      path: '/support-desk'
+      fullPath: '/support-desk'
+      preLoaderRoute: typeof SupportDeskRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/support-login': {
+      id: '/support-login'
+      path: '/support-login'
+      fullPath: '/support-login'
+      preLoaderRoute: typeof SupportLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/orders/$orderId': {
       id: '/orders/$orderId'
       path: '/orders/$orderId'
@@ -306,6 +340,8 @@ const rootRouteChildren: RootRouteChildren = {
   ShopRoute: ShopRoute,
   SignupRoute: SignupRoute,
   StaffRoute: StaffRoute,
+  SupportDeskRoute: SupportDeskRoute,
+  SupportLoginRoute: SupportLoginRoute,
   OrdersOrderIdRoute: OrdersOrderIdRoute,
   ProductSlugRoute: ProductSlugRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
