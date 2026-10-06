@@ -176,11 +176,11 @@ function Composer({
           rows={1}
           placeholder={placeholder}
           enterKeyHint="send"
-          className="max-h-24 min-h-11 flex-1 resize-none rounded-2xl bg-white px-3 py-2.5 text-base text-[#231c16] outline-none ring-1 ring-black/10"
+          className="h-11 max-h-11 flex-1 resize-none overflow-y-auto rounded-full bg-white px-4 py-2.5 text-base leading-5 text-[#231c16] outline-none ring-1 ring-black/10"
           onChange={(e) => setText(e.target.value)}
           onFocus={(e) => {
             const node = e.currentTarget;
-            window.setTimeout(() => node.scrollIntoView({ block: "end", behavior: "smooth" }), 180);
+            window.setTimeout(() => node.scrollIntoView({ block: "nearest" }), 50);
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
@@ -394,8 +394,8 @@ export function SupportWidget() {
   }, [open]);
   const unread = lines.filter((line) => line.from === "admin" && line.at > seen).length;
   const panelStyle = frame.narrow
-    ? { position: "fixed" as const, left: 0, right: 0, width: "100%", top: 0, height: frame.height, transform: `translate3d(0, ${frame.top}px, 0)`, borderRadius: 0, zIndex: 80 }
-    : { position: "fixed" as const, right: 16, bottom: 24, width: 390, height: Math.min(620, frame.height - 48), zIndex: 80 };
+    ? { position: "fixed" as const, left: 0, right: 0, top: frame.top, width: "100%", height: frame.height, maxHeight: "100dvh", borderRadius: 0, zIndex: 80 }
+    : { position: "fixed" as const, right: 16, bottom: 24, width: 390, height: Math.min(560, frame.height - 48), zIndex: 80 };
 
   const tree = (
     <>
