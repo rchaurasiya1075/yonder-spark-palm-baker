@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { collection, doc, getDocs, onSnapshot, setDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, setDoc } from "firebase/firestore";
 import { getFirebaseDb } from "@/lib/firebase";
 import { writer } from "@/lib/support-chat";
 
@@ -41,36 +41,30 @@ function newest(books: StaffBook[]) {
   return books.reduce<StaffBook>((best, book) => (book.updatedAt >= best.updatedAt ? book : best), { agents: [], updatedAt: "" });
 }
 
+function staffRef() {
+  const store = getFirebaseDb();
+  if (!store) throw new Error("Chat is not connected.");
+  return doc(store, "handles", "support-staff");
+}
+
 export function watchSupportStaff(onAgents: (rows: SupportAgent[]) => void) {
   const store = getFirebaseDb();
   if (!store) return () => {};
-  return onSnapshot(collection(store, "supportChats"), (snap) => {
-    const books: StaffBook[] = [];
-    snap.forEach((row) => {
-      const book = asBook(row.data().supportStaff);
-      if (book) books.push(book);
-    });
-    onAgents(newest(books).agents);
+  return onSnapshot(doc(store, "handles", "support-staff"), (snap) => {
+    onAgents(asBook(snap.data())?.agents || []);
   }, () => onAgents([]));
 }
 
 async function loadBook() {
   const store = getFirebaseDb();
   if (!store) return { agents: [], updatedAt: "" };
-  const snap = await getDocs(collection(store, "supportChats"));
-  const books: StaffBook[] = [];
-  snap.forEach((row) => {
-    const book = asBook(row.data().supportStaff);
-    if (book) books.push(book);
-  });
-  return newest(books);
+  const snap = await getDoc(doc(store, "handles", "support-staff"));
+  return asBook(snap.data()) || { agents: [], updatedAt: "" };
 }
 
 async function saveBook(agents: SupportAgent[]) {
-  const user = await writer();
-  const store = getFirebaseDb();
-  if (!store) throw new Error("Chat is not connected.");
-  await setDoc(doc(store, "supportChats", user.uid), { supportStaff: { agents, updatedAt: new Date().toISOString() } }, { merge: true });
+  await writer();
+  await setDoc(staffRef(), { supportStaff: { agents, updatedAt: new Date().toISOString() }, uid: "support-staff" }, { merge: true });
 }
 
 export async function createSupportAgent(input: { id: string; name: string; password: string }) {

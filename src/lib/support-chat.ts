@@ -90,18 +90,21 @@ export async function sendSupport(input: { name: string; email?: string; phone?:
   const image = input.image && input.image.startsWith("data:image/") ? input.image : "";
   if (!text && !image) return;
   const user = await writer();
-  const ref = doc(db(), "supportChats", user.uid);
+  const ref = doc(db(), "users", user.uid);
   const snap = await getDoc(ref);
   const line: SupportLine = { id: `s${Date.now().toString(36)}`, from: "user", text, at: new Date().toISOString() };
   if (image) line.image = image;
+  const data = snap.data() || {};
   await setDoc(
     ref,
     plain({
-      name: (input.name || "Customer").slice(0, 40),
-      email: (input.email || "").slice(0, 80),
-      phone: (input.phone || "").slice(0, 20),
-      createdAt: snap.data()?.createdAt || new Date().toISOString(),
-      supportChat: fit([...asLines(snap.data()?.supportChat), line]),
+      uid: user.uid,
+      role: data.role || "customer",
+      name: (input.name || data.name || "Customer").slice(0, 40),
+      email: (input.email || data.email || user.email || "").slice(0, 80),
+      phone: (input.phone || data.phone || "").slice(0, 20),
+      createdAt: data.createdAt || new Date().toISOString(),
+      supportChat: fit([...asLines(data.supportChat), line]),
       supportTyping: "",
     }),
     { merge: true },
@@ -112,20 +115,18 @@ export async function replySupport(userId: string, text: string, image?: string)
   const clean = text.trim().slice(0, 1000);
   const photo = image && image.startsWith("data:image/") ? image : "";
   if (!clean && !photo) return;
-  const user = await writer();
-  const ref = doc(db(), "supportChats", user.uid);
+  await writer();
+  const ref = doc(db(), "users", userId);
   const snap = await getDoc(ref);
-  const bag = (snap.data()?.supportReplies as Record<string, SupportLine[]> | undefined) || {};
   const line: SupportLine = { id: `a${Date.now().toString(36)}`, from: "admin", text: clean, at: new Date().toISOString() };
   if (photo) line.image = photo;
-  bag[userId] = fit([...asLines(bag[userId]), line]);
-  await setDoc(ref, plain({ supportReplies: bag, role: "admin" }), { merge: true });
+  await setDoc(ref, plain({ supportChat: fit([...asLines(snap.data()?.supportChat), line]), adminTyping: "" }), { merge: true });
 }
 
 export function watchSupportThreads(onThreads: (rows: SupportThread[]) => void) {
   const store = getFirebaseDb();
   if (!store) return () => {};
-  return onSnapshot(collection(store, "supportChats"), (snap) => {
+  return onSnapshot(collection(store, "users"), (snap) => {
     const replies = new Map<string, SupportLine[]>();
     const meta = new Map<string, DeskMeta>();
     snap.forEach((row) => {
@@ -173,60 +174,58 @@ export function watchSupportThreads(onThreads: (rows: SupportThread[]) => void) 
   }, () => onThreads([]));
 }
 
-async function patchDesk(userId: string, patch: DeskMeta) {
-  const user = await writer();
-  const ref = doc(db(), "supportChats", user.uid);
-  const snap = await getDoc(ref);
-  const bag = { ...((snap.data()?.supportDesk as Record<string, DeskMeta> | undefined) || {}) };
-  bag[userId] = { ...bag[userId], ...patch };
-  await setDoc(ref, plain({ supportDesk: bag, role: "admin" }), { merge: true });
+async function patchDesk(userId: string, patch: Record<string, string>) {
+  await writer();
+  await setDoc(doc(db(), "users", userId), plain(patch), { merge: true });
 }
 
 export function markSupportRead(userId: string) {
-  return patchDesk(userId, { readAt: new Date().toISOString() });
+  return patchDesk(userId, { supportReadAt: new Date().toISOString() });
 }
 export function setSupportStatus(userId: string, status: "pending" | "resolved") {
-  return patchDesk(userId, { status });
+  return patchDesk(userId, { supportStatus: status });
 }
 export function saveSupportNote(userId: string, note: string) {
-  return patchDesk(userId, { note: note.slice(0, 500) });
+  return patchDesk(userId, { supportNote: note.slice(0, 500) });
 }
 export function setAdminTyping(userId: string, on: boolean) {
-  return patchDesk(userId, { typing: on ? new Date().toISOString() : "" });
+  return patchDesk(userId, { adminTyping: on ? new Date().toISOString() : "" });
 }
 export async function markCustomerSeen() {
   const user = await writer();
-  await setDoc(doc(db(), "supportChats", user.uid), { supportSeen: new Date().toISOString() }, { merge: true });
+  await setDoc(doc(db(), "users", user.uid), { supportSeen: new Date().toISOString() }, { merge: true });
 }
 export async function setCustomerTyping(on: boolean) {
   const user = await writer();
-  await setDoc(doc(db(), "supportChats", user.uid), { supportTyping: on ? new Date().toISOString() : "" }, { merge: true });
+  await setDoc(doc(db(), "users", user.uid), { supportTyping: on ? new Date().toISOString() : "" }, { merge: true });
 }
 
 export function watchMySupport(onLines: (rows: SupportLine[]) => void, onTyping?: (typing: boolean) => void) {
   const store = getFirebaseDb();
   const auth = getFirebaseAuth();
   if (!store || !auth) return () => {};
-  return onSnapshot(collection(store, "supportChats"), (snap) => {
+  let stop = () => {};
+  const bind = () => {
+    stop();
     const me = auth.currentUser?.uid || "";
     if (!me) {
       onLines([]);
       onTyping?.(false);
+      stop = () => {};
       return;
     }
-    let own: SupportLine[] = [];
-    let extra: SupportLine[] = [];
-    let typing = false;
-    snap.forEach((row) => {
-      if (row.id === me) own = asLines(row.data().supportChat);
-      const bag = row.data().supportReplies as Record<string, unknown> | undefined;
-      if (bag?.[me]) extra = extra.concat(asLines(bag[me]));
-      const desk = row.data().supportDesk as Record<string, DeskMeta> | undefined;
-      if (desk?.[me] && fresh(desk[me].typing)) typing = true;
-    });
-    onLines([...own, ...extra].sort((a, b) => a.at.localeCompare(b.at)));
-    onTyping?.(typing);
-  }, () => onLines([]));
+    stop = onSnapshot(doc(store, "users", me), (row) => {
+      const data = row.data() || {};
+      onLines(asLines(data.supportChat));
+      onTyping?.(fresh(String(data.adminTyping || "")));
+    }, () => onLines([]));
+  };
+  bind();
+  const unsubAuth = auth.onAuthStateChanged(() => bind());
+  return () => {
+    stop();
+    unsubAuth();
+  };
 }
 
 export function shrinkImage(file: File) {
