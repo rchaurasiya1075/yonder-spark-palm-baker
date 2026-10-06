@@ -232,7 +232,7 @@ export function SupportInbox() {
   }, [thread?.userId, thread?.unread]);
 
   return (
-    <div className="grid h-[calc(100dvh-7.5rem)] overflow-hidden rounded-xl border border-white/10 bg-[#111b21] text-white lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)_300px]">
+    <div className="grid h-full min-h-0 overflow-hidden rounded-xl border border-white/10 bg-[#111b21] text-white lg:grid-cols-[280px_minmax(0,1fr)]">
       <aside className={`${thread ? "hidden lg:flex" : "flex"} min-h-0 flex-col border-r border-white/10`}>
         <div className="border-b border-white/10 p-3">
           <p className="text-sm font-semibold">Customer support</p>
@@ -353,26 +353,24 @@ export function SupportWidget() {
   const unread = lines.filter((line) => line.from === "admin" && line.at > seen).length;
 
   return (
-    <div className="fixed bottom-4 right-4 z-40">
+    <>
       {open && (
-        <section className="mb-3 flex h-[440px] w-[min(92vw,360px)] flex-col overflow-hidden rounded-2xl border border-black/10 bg-[#0b141a] text-white shadow-2xl">
-          <header className="flex items-center gap-2 bg-[#00a884] px-3 py-3 text-white">
+        <section className="fixed inset-x-3 bottom-20 z-50 flex h-[min(640px,calc(100dvh-6.5rem))] flex-col overflow-hidden rounded-2xl border border-black/10 bg-[#0b141a] text-white shadow-2xl sm:inset-x-auto sm:right-4 sm:w-[380px]">
+          <header className="flex shrink-0 items-center gap-2 bg-[#075e54] px-3 py-3 text-white">
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold">PINAKI Support</p>
-              <p className="text-[11px] text-white/80">{typing ? "Support is typing…" : "Typically replies in a few minutes"}</p>
+              <p className="text-[11px] text-white/80">{typing ? "Support is typing…" : "Hum yahin reply karenge"}</p>
             </div>
-            <button type="button" className="px-2" onClick={() => setOpen(false)} aria-label="Close chat"><X className="size-5" /></button>
+            <button type="button" className="grid size-9 place-items-center rounded-full hover:bg-white/10" onClick={() => setOpen(false)} aria-label="Close chat"><X className="size-5" /></button>
           </header>
-          {!name.trim() && (
-            <div className="grid gap-2 bg-[#111b21] p-3">
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Aapka naam" className="h-9 rounded-lg bg-[#202c33] px-3 text-sm outline-none" />
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Mobile" className="h-9 rounded-lg bg-[#202c33] px-3 text-sm outline-none" />
-            </div>
-          )}
-          {lines.length === 0 && <p className="bg-[#111b21] px-3 py-2 text-sm text-white/70">Namaste. Order, delivery, ya product — yahin likho.</p>}
+          <div className="grid shrink-0 gap-2 bg-[#111b21] p-3">
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Aapka naam" className="h-10 rounded-lg bg-[#202c33] px-3 text-sm text-white outline-none" />
+            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Mobile" className="h-10 rounded-lg bg-[#202c33] px-3 text-sm text-white outline-none" />
+          </div>
+          {lines.length === 0 && <p className="shrink-0 bg-[#111b21] px-3 pb-2 text-sm text-white/70">Namaste. Order, delivery, ya product yahin likho.</p>}
           <Bubbles lines={lines} mine="user" seen={seen} />
           <Composer
-            placeholder="Write a message"
+            placeholder="Message likho"
             onType={(typingNow) => void setCustomerTyping(typingNow).catch(() => undefined)}
             onSend={async (text, image) => {
               if (!name.trim()) throw new Error("Pehle naam likho.");
@@ -383,11 +381,11 @@ export function SupportWidget() {
           />
         </section>
       )}
-      <button type="button" onClick={() => setOpen((v) => !v)} className="relative ml-auto grid size-14 place-items-center rounded-full bg-[#00a884] text-2xl text-white shadow-lg" aria-label="Open support chat">
+      <button type="button" onClick={() => setOpen((v) => !v)} className="fixed bottom-4 right-4 z-50 grid size-14 place-items-center rounded-full bg-[#00a884] text-white shadow-lg" style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }} aria-label="Open support chat">
         {open ? <X className="size-6" /> : <MessageCircle className="size-7" />}
         {!open && unread > 0 && <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full bg-[#e23b3b] px-1 text-[11px]">{unread}</span>}
       </button>
-    </div>
+    </>
   );
 }
 
