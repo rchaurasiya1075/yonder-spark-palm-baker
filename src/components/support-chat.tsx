@@ -73,14 +73,22 @@ function Bubbles({
   seen?: string;
 }) {
   const box = useRef<HTMLDivElement>(null);
+  const stick = useRef(true);
   useEffect(() => {
     const node = box.current;
-    if (!node) return;
+    if (!node || !stick.current) return;
     node.scrollTop = node.scrollHeight;
   }, [lines]);
   let lastDay = "";
   return (
-    <div ref={box} className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain bg-[#efe7dc] px-3 py-3">
+    <div
+      ref={box}
+      className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain bg-[#efe7dc] px-3 py-3"
+      onScroll={(e) => {
+        const node = e.currentTarget;
+        stick.current = node.scrollHeight - node.scrollTop - node.clientHeight < 80;
+      }}
+    >
       {lines.length === 0 && <p className="pt-8 text-center text-sm text-[#6d6256]">Abhi koi message nahi.</p>}
       {lines.map((line) => {
         const day = dayLabel(line.at);
